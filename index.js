@@ -101,30 +101,46 @@ function systemPrompt(lang) {
     : 'Ești asistentul Didi Kids MD (Moldova). Răspunde doar despre haine, prețuri, mărimi și livrare. Catalog: rochii (249-349 MDL), seturi cu fuste (349-499 MDL), seturi cu pantaloni (329-459 MDL). Mărimi: 86-116. Livrare în toată Moldova. Fii scurt și prietenos. Răspunde în română.';
 }
 
+function isGroup(msg) {
+  return msg.chat.type === 'group' || msg.chat.type === 'supergroup';
+}
+
 bot.on('message', async (msg) => {
   const chatId = msg.chat.id;
   const text = msg.text || '';
+  const botUsername = process.env.BOT_USERNAME || '';
+
+  // In grup, raspunde doar daca e mentionat sau e reply la bot
+  if (isGroup(msg)) {
+    const isMentioned = botUsername && text.includes('@' + botUsername);
+    const isReplyToBot = msg.reply_to_message && msg.reply_to_message.from && msg.reply_to_message.from.is_bot;
+    if (!isMentioned && !isReplyToBot && text !== '/start') return;
+  }
 
   if (!userLang[chatId] || text === '/start') {
     userLang[chatId] = detectLang(text === '/start' ? '' : text);
   }
   const lang = getLang(chatId);
 
-  if (text === '/start') return bot.sendMessage(chatId, welcomeText(lang), mainMenu(lang));
+  const cleanText = text.replace(/@w+/g, '').trim();
 
-  if (['👗 Rochii', '👗 Платья'].includes(text))
+  if (cleanText === '/start' || text === '/start') {
+    return bot.sendMessage(chatId, welcomeText(lang), mainMenu(lang));
+  }
+
+  if (['👗 Rochii', '👗 Платья'].includes(cleanText))
     return bot.sendMessage(chatId, CATALOG.rochii[lang], { parse_mode: 'Markdown', reply_markup: mainMenu(lang).reply_markup });
 
-  if (['👚 Seturi cu fuste', '👚 Комплекты с юбками'].includes(text))
+  if (['👚 Seturi cu fuste', '👚 Комплекты с юбками'].includes(cleanText))
     return bot.sendMessage(chatId, CATALOG.seturi_fuste[lang], { parse_mode: 'Markdown', reply_markup: mainMenu(lang).reply_markup });
 
-  if (['👕 Seturi cu pantaloni', '👕 Комплекты с брюками'].includes(text))
+  if (['👕 Seturi cu pantaloni', '👕 Комплекты с брюками'].includes(cleanText))
     return bot.sendMessage(chatId, CATALOG.seturi_pantaloni[lang], { parse_mode: 'Markdown', reply_markup: mainMenu(lang).reply_markup });
 
-  if (['❓ Întreabă Didi', '❓ Спроси Диди'].includes(text))
+  if (['❓ Întreabă Didi', '❓ Спроси Диди'].includes(cleanText))
     return bot.sendMessage(chatId, lang === 'ru' ? '💬 Напишите ваш вопрос!' : '💬 Scrie întrebarea ta!', mainMenu(lang));
 
-  userLang[chatId] = detectLang(text);
+  userLang[chatId] = detectLang(cleanText);
   const updatedLang = getLang(chatId);
 
   try {
@@ -133,11 +149,11 @@ bot.on('message', async (msg) => {
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 400,
       system: systemPrompt(updatedLang),
-      messages: [{ role: 'user', content: text }],
+      messages: [{ role: 'user', content: cleanText || text }],
     });
     bot.sendMessage(chatId, response.content[0].text, { reply_markup: mainMenu(updatedLang).reply_markup });
   } catch (error) {
-    bot.sendMessage(chatId, updatedLang === 'ru' ? 'Произошла ошибка. Попробуйте ещё раз.' : 'A apărut o eroare. Încercați din nou.', mainMenu(updatedLang));
+    bot.sendMessage(chatId, updatedLang === 'ru' ? 'Произошла ошибка. Попробуйте ещё раз.' : 'A apărut o eroare. Încercați din nou.');
   }
 });
 
