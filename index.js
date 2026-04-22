@@ -6,17 +6,42 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const CATALOG = {
   rochii: {
-    ro: '👗 *Rochii fete*\n\n1. Rochiță florală – 299 MDL | mărimi: 92, 98, 104, 110\n2. Rochie elegantă albă – 349 MDL | mărimi: 98, 104, 110, 116\n3. Rochie casual dungi – 249 MDL | mărimi: 86, 92, 98, 104\n4. Rochiță cu volane roz – 319 MDL | mărimi: 92, 98, 104\n\n📦 Livrare în toată Moldova',
-    ru: '👗 *Платья для девочек*\n\n1. Платье с цветами – 299 MDL | размеры: 92, 98, 104, 110\n2. Элегантное белое платье – 349 MDL | размеры: 98, 104, 110, 116\n3. Платье в полоску – 249 MDL | размеры: 86, 92, 98, 104\n4. Платье с воланами розовое – 319 MDL | размеры: 92, 98, 104\n\n📦 Доставка по всей Молдове',
+    ro: '👗 *Rochii fete*\n\n1. Rochiță florală – 299 MDL | mărimi: 92, 98, 104, 110\n2. Rochie elegantă albă – 349 MDL | mărimi: 98, 104, 110, 116\n3. Rochie casual dungi – 249 MDL | mărimi: 86, 92, 98, 104\n4. Rochiță cu volane roz – 319 MDL | mărimi: 92, 98, 104\n\n📦 Livrare GRATUITĂ în toată Moldova',
+    ru: '👗 *Платья для девочек*\n\n1. Платье с цветами – 299 MDL | размеры: 92, 98, 104, 110\n2. Элегантное белое платье – 349 MDL | размеры: 98, 104, 110, 116\n3. Платье в полоску – 249 MDL | размеры: 86, 92, 98, 104\n4. Платье с воланами розовое – 319 MDL | размеры: 92, 98, 104\n\n📦 Доставка БЕСПЛАТНАЯ по всей Молдове',
   },
   seturi_fuste: {
-    ro: '👚 *Seturi cu fuste*\n\n1. Set floral (bluză + fustă) – 399 MDL | mărimi: 92, 98, 104, 110\n2. Set elegant alb-roz – 449 MDL | mărimi: 98, 104, 110, 116\n3. Set casual (tricou + fustă dungată) – 349 MDL | mărimi: 86, 92, 98\n4. Set festiv cu paiete – 499 MDL | mărimi: 104, 110, 116\n\n📦 Livrare în toată Moldova',
-    ru: '👚 *Комплекты с юбками*\n\n1. Цветочный комплект (блузка + юбка) – 399 MDL | размеры: 92, 98, 104, 110\n2. Элегантный бело-розовый – 449 MDL | размеры: 98, 104, 110, 116\n3. Casual (футболка + юбка в полоску) – 349 MDL | размеры: 86, 92, 98\n4. Праздничный с пайетками – 499 MDL | размеры: 104, 110, 116\n\n📦 Доставка по всей Молдове',
+    ro: '👚 *Seturi cu fuste*\n\n1. Set floral (bluză + fustă) – 399 MDL | mărimi: 92, 98, 104, 110\n2. Set elegant alb-roz – 449 MDL | mărimi: 98, 104, 110, 116\n3. Set casual (tricou + fustă dungată) – 349 MDL | mărimi: 86, 92, 98\n4. Set festiv cu paiete – 499 MDL | mărimi: 104, 110, 116\n\n📦 Livrare GRATUITĂ în toată Moldova',
+    ru: '👚 *Комплекты с юбками*\n\n1. Цветочный комплект (блузка + юбка) – 399 MDL | размеры: 92, 98, 104, 110\n2. Элегантный бело-розовый – 449 MDL | размеры: 98, 104, 110, 116\n3. Casual (футболка + юбка в полоску) – 349 MDL | размеры: 86, 92, 98\n4. Праздничный с пайетками – 499 MDL | размеры: 104, 110, 116\n\n📦 Доставка БЕСПЛАТНАЯ по всей Молдове',
   },
   seturi_pantaloni: {
-    ro: '👕 *Seturi cu pantaloni*\n\n1. Set sport (hanorac + pantaloni) – 379 MDL | mărimi: 92, 98, 104, 110, 116\n2. Set casual dungi – 329 MDL | mărimi: 86, 92, 98, 104\n3. Set elegant (cămașă + pantaloni) – 429 MDL | mărimi: 98, 104, 110, 116\n4. Set jeans + bluză – 459 MDL | mărimi: 92, 98, 104, 110\n\n📦 Livrare în toată Moldova',
-    ru: '👕 *Комплекты с брюками*\n\n1. Спортивный (худи + брюки) – 379 MDL | размеры: 92, 98, 104, 110, 116\n2. Casual в полоску – 329 MDL | размеры: 86, 92, 98, 104\n3. Элегантный (рубашка + брюки) – 429 MDL | размеры: 98, 104, 110, 116\n4. Джинсы + блузка – 459 MDL | размеры: 92, 98, 104, 110\n\n📦 Доставка по всей Молдове',
+    ro: '👕 *Seturi cu pantaloni*\n\n1. Set sport (hanorac + pantaloni) – 379 MDL | mărimi: 92, 98, 104, 110, 116\n2. Set casual dungi – 329 MDL | mărimi: 86, 92, 98, 104\n3. Set elegant (cămașă + pantaloni) – 429 MDL | mărimi: 98, 104, 110, 116\n4. Set jeans + bluză – 459 MDL | mărimi: 92, 98, 104, 110\n\n📦 Livrare GRATUITĂ în toată Moldova',
+    ru: '👕 *Комплекты с брюками*\n\n1. Спортивный (худи + брюки) – 379 MDL | размеры: 92, 98, 104, 110, 116\n2. Casual в полоску – 329 MDL | размеры: 86, 92, 98, 104\n3. Элегантный (рубашка + брюки) – 429 MDL | размеры: 98, 104, 110, 116\n4. Джинсы + блузка – 459 MDL | размеры: 92, 98, 104, 110\n\n📦 Доставка БЕСПЛАТНАЯ по всей Молдове',
   },
+};
+
+const ORDER_INFO = {
+  ro: '🛍 *Cum să faci o comandă la Didi Kids MD?*\n\n' +
+      '1. Alege modelul dorit din catalogul nostru\n' +
+      '2. Trimite-ne poza cu modelul + mărimea pentru fetița ta\n' +
+      '3. Noi confirmăm comanda și o pregătim pentru tine\n\n' +
+      '📋 *Pentru înregistrarea comenzii scrieți-ne:*\n' +
+      '— Numele, Prenumele\n' +
+      '— Nr. de telefon\n' +
+      '— Adresa de livrare\n' +
+      '— Cod poștal\n\n' +
+      '📦 *Livrarea este GRATUITĂ* pe tot teritoriul Republicii Moldova!\n\n' +
+      '📩 Scrie-ne direct: @didikidsmd\\_bot',
+  ru: '🛍 *Как сделать заказ в Didi Kids MD?*\n\n' +
+      '1. Выберите понравившуюся модель из каталога\n' +
+      '2. Отправьте нам фото модели + размер для вашей девочки\n' +
+      '3. Мы подтвердим заказ и подготовим его для вас\n\n' +
+      '📋 *Для оформления заказа напишите нам:*\n' +
+      '— Имя, Фамилия\n' +
+      '— Номер телефона\n' +
+      '— Адрес доставки\n' +
+      '— Почтовый индекс\n\n' +
+      '📦 *Доставка БЕСПЛАТНАЯ* по всей территории Молдовы!\n\n' +
+      '📩 Пишите нам: @didikidsmd\\_bot',
 };
 
 const userLang = {};
@@ -42,7 +67,7 @@ function mainMenu(lang) {
         ],
         [
           { text: lang === 'ru' ? '👕 Комплекты с брюками' : '👕 Seturi cu pantaloni' },
-          { text: lang === 'ru' ? '❓ Спроси Диди' : '❓ Întreabă Didi' },
+          { text: lang === 'ru' ? '🛍 Cum sa comand' : '🛍 Cum sa comand' },
         ],
       ],
       resize_keyboard: true,
@@ -59,8 +84,8 @@ function welcomeText(lang) {
 
 function systemPrompt(lang) {
   return lang === 'ru'
-    ? 'Ты помощник магазина Didi Kids MD (Молдова). Отвечай только о одежде, ценах, размерах и доставке. Каталог: платья (249-349 MDL), комплекты с юбками (349-499 MDL), комплекты с брюками (329-459 MDL). Размеры: 86-116. Доставка по всей Молдове. Будь кратким и дружелюбным. Отвечай на русском.'
-    : 'Ești asistentul Didi Kids MD (Moldova). Raspunde doar despre haine, preturi, marimi si livrare. Catalog: rochii (249-349 MDL), seturi cu fuste (349-499 MDL), seturi cu pantaloni (329-459 MDL). Marimi: 86-116. Livrare in toata Moldova. Fii scurt si prietenos. Raspunde in romana.';
+    ? 'Ты помощник магазина Didi Kids MD (Молдова). Отвечай только о одежде, ценах, размерах и доставке. Каталог: платья (249-349 MDL), комплекты с юбками (349-499 MDL), комплекты с брюками (329-459 MDL). Размеры: 86-116. Доставка БЕСПЛАТНАЯ по всей Молдове. Будь кратким и дружелюбным. Отвечай на русском.'
+    : 'Esti asistentul Didi Kids MD (Moldova). Raspunde doar despre haine, preturi, marimi si livrare. Catalog: rochii (249-349 MDL), seturi cu fuste (349-499 MDL), seturi cu pantaloni (329-459 MDL). Marimi: 86-116. Livrare GRATUITA in toata Moldova. Fii scurt si prietenos. Raspunde in romana.';
 }
 
 function isGroup(msg) {
@@ -101,8 +126,8 @@ bot.on('message', async (msg) => {
     return bot.sendMessage(chatId, CATALOG.seturi_pantaloni[lang], { parse_mode: 'Markdown', reply_markup: mainMenu(lang).reply_markup });
   }
 
-  if (['❓ Întreabă Didi', '❓ Спроси Диди'].includes(cleanText)) {
-    return bot.sendMessage(chatId, lang === 'ru' ? '💬 Напишите ваш вопрос!' : '💬 Scrie intrebarea ta!', mainMenu(lang));
+  if (['🛍 Cum sa comand'].includes(cleanText)) {
+    return bot.sendMessage(chatId, ORDER_INFO[lang], { parse_mode: 'Markdown', reply_markup: mainMenu(lang).reply_markup });
   }
 
   userLang[chatId] = detectLang(cleanText || text);
