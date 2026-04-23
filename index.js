@@ -4,7 +4,13 @@ const Anthropic = require('@anthropic-ai/sdk');
 process.on('unhandledRejection', () => {});
 process.on('uncaughtException', (err) => { console.error('err:', err.message); });
 
-const bot = new TelegramBot(process.env.TELEGRAM_TOKEN, { polling: true });
+const bot = new TelegramBot(process.env.TELEGRAM_TOKEN, {
+  polling: {
+    interval: 1000,
+    autoStart: true,
+    params: { timeout: 10 },
+  },
+});
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const CATALOG = {
