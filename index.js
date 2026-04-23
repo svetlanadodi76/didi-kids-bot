@@ -64,7 +64,7 @@ const ORDER_INFO = {
       '📮 Prin poștă — livrare în 2-4 zile lucrătoare\n' +
       '🏃 Prin curier — livrare în 1-2 zile lucrătoare\n\n' +
       '📦 *Livrarea este GRATUITĂ* pe tot teritoriul Republicii Moldova!\n\n' +
-      '📩 Scrie-ne direct: @didikidsmd_bot',
+      '📩 Scrie-ne direct in acest chat!',
   ru: '🛍 *Как сделать заказ в Didi Kids MD?*\n\n' +
       '1. Выберите понравившуюся модель из каталога\n' +
       '2. Отправьте нам фото модели + размер для вашего ребёнка\n' +
@@ -78,7 +78,7 @@ const ORDER_INFO = {
       '📮 Почтой — доставка 2-4 рабочих дня\n' +
       '🏃 Курьером — доставка 1-2 рабочих дня\n\n' +
       '📦 *Доставка БЕСПЛАТНАЯ* по всей территории Молдовы!\n\n' +
-      '📩 Пишите нам: @didikidsmd_bot',
+      '📩 Пишите нам прямо в этот чат!',
 };
 
 const userLang = {};
