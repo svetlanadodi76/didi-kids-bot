@@ -61,8 +61,8 @@ const ORDER_INFO = {
       '— Adresa de livrare\n' +
       '— Cod postal\n\n' +
       '🚚 Optiuni de livrare:\n' +
-      '📮 Prin posta — 2-4 zile lucratoare\n' +
-      '🏃 Prin curier — 1-2 zile lucratoare\n\n' +
+      '📮 Prin posta — 2-3 zile lucratoare\n' +
+      '🏃 Prin curier — 2-3 zile lucratoare\n\n' +
       '📦 Livrarea este GRATUITA pe tot teritoriul Republicii Moldova!',
   ru: '🛍 Как сделать заказ в Didi Kids MD?\n\n' +
       '1. Выберите понравившуюся модель из каталога\n' +
@@ -74,8 +74,8 @@ const ORDER_INFO = {
       '— Адрес доставки\n' +
       '— Почтовый индекс\n\n' +
       '🚚 Варианты доставки:\n' +
-      '📮 Почтой — 2-4 рабочих дня\n' +
-      '🏃 Курьером — 1-2 рабочих дня\n\n' +
+      '📮 Почтой — 2-3 рабочих дня\n' +
+      '🏃 Курьером — 2-3 рабочих дня\n\n' +
       '📦 Доставка БЕСПЛАТНАЯ по всей территории Молдовы!',
 };
 
