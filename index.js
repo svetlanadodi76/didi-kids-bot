@@ -166,8 +166,15 @@ bot.on('message', async (msg) => {
     });
     bot.sendMessage(chatId, response.content[0].text, { reply_markup: mainMenu(updatedLang).reply_markup });
   } catch (error) {
-    console.error(error);
+    console.error('AI error:', error.message);
     bot.sendMessage(chatId, updatedLang === 'ru' ? 'Произошла ошибка. Попробуйте ещё раз.' : 'A aparut o eroare. Incercati din nou.');
+  }
+});
+
+bot.on('polling_error', (error) => {
+  if (error.code === 'ETELEGRAM' && error.message.includes('409')) {
+    console.error('409 Conflict: alta instanta ruleaza. Oprire...');
+    process.exit(1);
   }
 });
 
