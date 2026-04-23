@@ -51,6 +51,9 @@ const ORDER_INFO = {
       '— Nr. de telefon\n' +
       '— Adresa de livrare\n' +
       '— Cod poștal\n\n' +
+      '🚚 *Opțiuni de livrare:*\n' +
+      '📮 Prin poștă — livrare în 2-4 zile lucrătoare\n' +
+      '🏃 Prin curier — livrare în 1-2 zile lucrătoare\n\n' +
       '📦 *Livrarea este GRATUITĂ* pe tot teritoriul Republicii Moldova!\n\n' +
       '📩 Scrie-ne direct: @didikidsmd\\_bot',
   ru: '🛍 *Как сделать заказ в Didi Kids MD?*\n\n' +
@@ -62,6 +65,9 @@ const ORDER_INFO = {
       '— Номер телефона\n' +
       '— Адрес доставки\n' +
       '— Почтовый индекс\n\n' +
+      '🚚 *Варианты доставки:*\n' +
+      '📮 Почтой — доставка 2-4 рабочих дня\n' +
+      '🏃 Курьером — доставка 1-2 рабочих дня\n\n' +
       '📦 *Доставка БЕСПЛАТНАЯ* по всей территории Молдовы!\n\n' +
       '📩 Пишите нам: @didikidsmd\\_bot',
 };
@@ -105,8 +111,8 @@ function welcomeText(lang) {
 
 function systemPrompt(lang) {
   return lang === 'ru'
-    ? 'Ты помощник магазина Didi Kids MD (Молдова). Отвечай только о одежде, ценах, размерах и доставке. Для девочек: костюм деним Mickey Mouse 850 лей, костюм 2 предмета 650 лей, платья 590-650 лей. Для мальчиков: костюм деним Louis Vuitton 850 лей, костюм 3 предмета 650 лей. Размеры: 80-160 см. Доставка БЕСПЛАТНАЯ по всей Молдове. Будь кратким и дружелюбным. Отвечай на русском.'
-    : 'Esti asistentul Didi Kids MD (Moldova). Raspunde doar despre haine, preturi, marimi si livrare. Pentru fete: costum denim Mickey Mouse 850 lei, costum 2 piese 650 lei, rochite 590-650 lei. Pentru baieti: costum denim Louis Vuitton 850 lei, costum 3 piese 650 lei. Marimi: 80-160 cm. Livrare GRATUITA in toata Moldova. Fii scurt si prietenos. Raspunde in romana.';
+    ? 'Ты помощник магазина Didi Kids MD (Молдова). Отвечай только о одежде, ценах, размерах и доставке. Для девочек: костюм деним Mickey Mouse 850 лей, костюм 2 предмета 650 лей, платья 590-650 лей. Для мальчиков: костюм деним Louis Vuitton 850 лей, костюм 3 предмета 650 лей. Размеры: 80-160 см. Доставка БЕСПЛАТНАЯ по всей Молдове (почтой 2-4 дня или курьером 1-2 дня). Будь кратким и дружелюбным. Отвечай на русском.'
+    : 'Esti asistentul Didi Kids MD (Moldova). Raspunde doar despre haine, preturi, marimi si livrare. Pentru fete: costum denim Mickey Mouse 850 lei, costum 2 piese 650 lei, rochite 590-650 lei. Pentru baieti: costum denim Louis Vuitton 850 lei, costum 3 piese 650 lei. Marimi: 80-160 cm. Livrare GRATUITA in toata Moldova (prin posta 2-4 zile sau prin curier 1-2 zile). Fii scurt si prietenos. Raspunde in romana.';
 }
 
 function isGroup(msg) {
