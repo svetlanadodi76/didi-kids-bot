@@ -97,11 +97,8 @@ function mainMenu(lang) {
     reply_markup: {
       keyboard: [
         [
-          { text: lang === 'ru' ? '👧 Девочки' : '👧 Fete' },
-          { text: lang === 'ru' ? '👦 Мальчики' : '👦 Băieți' },
-        ],
-        [
           { text: lang === 'ru' ? '🛍 Как заказать' : '🛍 Cum sa comand' },
+          { text: lang === 'ru' ? '❓ Задать вопрос' : '❓ Intreaba Didi' },
         ],
       ],
       resize_keyboard: true,
@@ -112,8 +109,8 @@ function mainMenu(lang) {
 
 function welcomeText(lang) {
   return lang === 'ru'
-    ? '👋 Добро пожаловать в *Didi Kids MD*!\n\nКрасивая одежда для детей. Выберите категорию 👇'
-    : '👋 Bun venit la *Didi Kids MD*!\n\nHaine frumoase pentru copii. Alege o categorie 👇';
+    ? '👋 Добро пожаловать в Didi Kids MD!\n\nКрасивая одежда для детей из Молдовы.\n\n📸 Смотрите наш каталог в канале: @didikidsmd\n\nВыберите действие 👇'
+    : '👋 Bun venit la Didi Kids MD!\n\nHaine frumoase pentru copii din Moldova.\n\n📸 Vezi catalogul nostru in canal: @didikidsmd\n\nAlege o optiune 👇';
 }
 
 function systemPrompt(lang) {
@@ -148,17 +145,16 @@ bot.on('message', async (msg) => {
     return bot.sendMessage(chatId, welcomeText(lang), mainMenu(lang));
   }
 
-  if (['👧 Fete', '👧 Девочки'].includes(cleanText)) {
-    return bot.sendMessage(chatId, CATALOG.fete[lang], { parse_mode: 'Markdown', reply_markup: mainMenu(lang).reply_markup });
-  }
-
-  if (['👦 Băieți', '👦 Мальчики'].includes(cleanText)) {
-    return bot.sendMessage(chatId, CATALOG.baieti[lang], { parse_mode: 'Markdown', reply_markup: mainMenu(lang).reply_markup });
-  }
-
   if (['🛍 Cum sa comand', '🛍 Как заказать'].includes(cleanText)) {
     return bot.sendMessage(chatId, ORDER_INFO[lang], { reply_markup: mainMenu(lang).reply_markup })
       .catch(err => console.error('ORDER_INFO err:', err.message));
+  }
+
+  if (['❓ Intreaba Didi', '❓ Задать вопрос'].includes(cleanText)) {
+    const prompt = lang === 'ru'
+      ? '💬 Напишите ваш вопрос и я отвечу!'
+      : '💬 Scrie intrebarea ta si iti raspund!';
+    return bot.sendMessage(chatId, prompt, { reply_markup: mainMenu(lang).reply_markup });
   }
 
   userLang[chatId] = detectLang(cleanText || text);
