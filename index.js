@@ -51,34 +51,32 @@ const CATALOG = {
 };
 
 const ORDER_INFO = {
-  ro: '🛍 *Cum să faci o comandă la Didi Kids MD?*\n\n' +
+  ro: '🛍 Cum sa faci o comanda la Didi Kids MD?\n\n' +
       '1. Alege modelul dorit din catalog\n' +
-      '2. Trimite-ne poza cu modelul + mărimea pentru copilul tău\n' +
-      '3. Noi confirmăm comanda și o pregătim pentru tine\n\n' +
-      '📋 *Pentru înregistrarea comenzii scrieți-ne:*\n' +
+      '2. Trimite-ne poza cu modelul + marimea pentru copilul tau\n' +
+      '3. Noi confirmam comanda si o pregatim pentru tine\n\n' +
+      '📋 Pentru inregistrarea comenzii scrieti-ne:\n' +
       '— Numele, Prenumele\n' +
       '— Nr. de telefon\n' +
       '— Adresa de livrare\n' +
-      '— Cod poștal\n\n' +
-      '🚚 *Opțiuni de livrare:*\n' +
-      '📮 Prin poștă — livrare în 2-4 zile lucrătoare\n' +
-      '🏃 Prin curier — livrare în 1-2 zile lucrătoare\n\n' +
-      '📦 *Livrarea este GRATUITĂ* pe tot teritoriul Republicii Moldova!\n\n' +
-      '📩 Scrie-ne direct in acest chat!',
-  ru: '🛍 *Как сделать заказ в Didi Kids MD?*\n\n' +
+      '— Cod postal\n\n' +
+      '🚚 Optiuni de livrare:\n' +
+      '📮 Prin posta — 2-4 zile lucratoare\n' +
+      '🏃 Prin curier — 1-2 zile lucratoare\n\n' +
+      '📦 Livrarea este GRATUITA pe tot teritoriul Republicii Moldova!',
+  ru: '🛍 Как сделать заказ в Didi Kids MD?\n\n' +
       '1. Выберите понравившуюся модель из каталога\n' +
       '2. Отправьте нам фото модели + размер для вашего ребёнка\n' +
       '3. Мы подтвердим заказ и подготовим его для вас\n\n' +
-      '📋 *Для оформления заказа напишите нам:*\n' +
+      '📋 Для оформления заказа напишите нам:\n' +
       '— Имя, Фамилия\n' +
       '— Номер телефона\n' +
       '— Адрес доставки\n' +
       '— Почтовый индекс\n\n' +
-      '🚚 *Варианты доставки:*\n' +
-      '📮 Почтой — доставка 2-4 рабочих дня\n' +
-      '🏃 Курьером — доставка 1-2 рабочих дня\n\n' +
-      '📦 *Доставка БЕСПЛАТНАЯ* по всей территории Молдовы!\n\n' +
-      '📩 Пишите нам прямо в этот чат!',
+      '🚚 Варианты доставки:\n' +
+      '📮 Почтой — 2-4 рабочих дня\n' +
+      '🏃 Курьером — 1-2 рабочих дня\n\n' +
+      '📦 Доставка БЕСПЛАТНАЯ по всей территории Молдовы!',
 };
 
 const userLang = {};
@@ -159,7 +157,8 @@ bot.on('message', async (msg) => {
   }
 
   if (['🛍 Cum sa comand', '🛍 Как заказать'].includes(cleanText)) {
-    return bot.sendMessage(chatId, ORDER_INFO[lang], { parse_mode: 'Markdown', reply_markup: mainMenu(lang).reply_markup });
+    return bot.sendMessage(chatId, ORDER_INFO[lang], { reply_markup: mainMenu(lang).reply_markup })
+      .catch(err => console.error('ORDER_INFO err:', err.message));
   }
 
   userLang[chatId] = detectLang(cleanText || text);
