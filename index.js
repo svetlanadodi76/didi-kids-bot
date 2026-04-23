@@ -24,7 +24,7 @@ const CATALOG = {
         '6. Costum denim roz – 650 lei | mărimi: 80-120 cm\n' +
         '7. Costum Chanel pantaloni sclipici + maiou negru – 650 lei | mărimi: 90-130 cm\n\n' +
         '📦 Livrare GRATUITĂ în toată Moldova\n' +
-        '📩 Comandă: @didikidsmd_bot',
+        '📩 Scrie-ne pentru a comanda!',
     ru: '👧 *Коллекция для девочек*\n\n' +
         '1. Костюм деним Mickey Mouse – 850 лей | размеры: 110-150 см\n' +
         '2. Костюм 2 предмета джинсы + розовая майка – 650 лей | размеры: 80-120 см\n' +
@@ -34,19 +34,19 @@ const CATALOG = {
         '6. Костюм деним розовый – 650 лей | размеры: 80-120 см\n' +
         '7. Костюм Chanel брюки с блёстками + чёрная майка – 650 лей | размеры: 90-130 см\n\n' +
         '📦 Доставка БЕСПЛАТНАЯ по всей Молдове\n' +
-        '📩 Заказ: @didikidsmd_bot',
+        '📩 Напишите нам для заказа!',
   },
   baieti: {
     ro: '👦 *Colecție Băieți*\n\n' +
         '1. Costum denim Louis Vuitton 3 piese – 850 lei | mărimi: 80-120 cm\n' +
         '2. Costum 3 piese pantaloni + maiou + cămașă – 650 lei | mărimi: 80-120 cm\n\n' +
         '📦 Livrare GRATUITĂ în toată Moldova\n' +
-        '📩 Comandă: @didikidsmd_bot',
+        '📩 Scrie-ne pentru a comanda!',
     ru: '👦 *Коллекция для мальчиков*\n\n' +
         '1. Костюм деним Louis Vuitton 3 предмета – 850 лей | размеры: 80-120 см\n' +
         '2. Костюм 3 предмета брюки + майка + рубашка – 650 лей | размеры: 80-120 см\n\n' +
         '📦 Доставка БЕСПЛАТНАЯ по всей Молдове\n' +
-        '📩 Заказ: @didikidsmd_bot',
+        '📩 Напишите нам для заказа!',
   },
 };
 
