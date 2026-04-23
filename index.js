@@ -172,10 +172,11 @@ bot.on('message', async (msg) => {
 });
 
 bot.on('polling_error', (error) => {
-  if (error.code === 'ETELEGRAM' && error.message.includes('409')) {
-    console.error('409 Conflict: alta instanta ruleaza. Oprire...');
+  const msg = error.message || '';
+  if (msg.includes('409')) {
     process.exit(1);
   }
+  // suprima alte erori de polling ca sa nu depasim rate limit-ul
 });
 
 console.log('Didi Kids Bot pornit...');
