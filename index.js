@@ -15,7 +15,7 @@ const CATALOG = {
         '6. Costum denim roz – 650 lei | mărimi: 80-120 cm\n' +
         '7. Costum Chanel pantaloni sclipici + maiou negru – 650 lei | mărimi: 90-130 cm\n\n' +
         '📦 Livrare GRATUITĂ în toată Moldova\n' +
-        '📩 Comandă: @didikidsmd\\_bot',
+        '📩 Comandă: @didikidsmd_bot',
     ru: '👧 *Коллекция для девочек*\n\n' +
         '1. Костюм деним Mickey Mouse – 850 лей | размеры: 110-150 см\n' +
         '2. Костюм 2 предмета джинсы + розовая майка – 650 лей | размеры: 80-120 см\n' +
@@ -25,19 +25,19 @@ const CATALOG = {
         '6. Костюм деним розовый – 650 лей | размеры: 80-120 см\n' +
         '7. Костюм Chanel брюки с блёстками + чёрная майка – 650 лей | размеры: 90-130 см\n\n' +
         '📦 Доставка БЕСПЛАТНАЯ по всей Молдове\n' +
-        '📩 Заказ: @didikidsmd\\_bot',
+        '📩 Заказ: @didikidsmd_bot',
   },
   baieti: {
     ro: '👦 *Colecție Băieți*\n\n' +
         '1. Costum denim Louis Vuitton 3 piese – 850 lei | mărimi: 80-120 cm\n' +
         '2. Costum 3 piese pantaloni + maiou + cămașă – 650 lei | mărimi: 80-120 cm\n\n' +
         '📦 Livrare GRATUITĂ în toată Moldova\n' +
-        '📩 Comandă: @didikidsmd\\_bot',
+        '📩 Comandă: @didikidsmd_bot',
     ru: '👦 *Коллекция для мальчиков*\n\n' +
         '1. Костюм деним Louis Vuitton 3 предмета – 850 лей | размеры: 80-120 см\n' +
         '2. Костюм 3 предмета брюки + майка + рубашка – 650 лей | размеры: 80-120 см\n\n' +
         '📦 Доставка БЕСПЛАТНАЯ по всей Молдове\n' +
-        '📩 Заказ: @didikidsmd\\_bot',
+        '📩 Заказ: @didikidsmd_bot',
   },
 };
 
@@ -55,7 +55,7 @@ const ORDER_INFO = {
       '📮 Prin poștă — livrare în 2-4 zile lucrătoare\n' +
       '🏃 Prin curier — livrare în 1-2 zile lucrătoare\n\n' +
       '📦 *Livrarea este GRATUITĂ* pe tot teritoriul Republicii Moldova!\n\n' +
-      '📩 Scrie-ne direct: @didikidsmd\\_bot',
+      '📩 Scrie-ne direct: @didikidsmd_bot',
   ru: '🛍 *Как сделать заказ в Didi Kids MD?*\n\n' +
       '1. Выберите понравившуюся модель из каталога\n' +
       '2. Отправьте нам фото модели + размер для вашего ребёнка\n' +
@@ -69,7 +69,7 @@ const ORDER_INFO = {
       '📮 Почтой — доставка 2-4 рабочих дня\n' +
       '🏃 Курьером — доставка 1-2 рабочих дня\n\n' +
       '📦 *Доставка БЕСПЛАТНАЯ* по всей территории Молдовы!\n\n' +
-      '📩 Пишите нам: @didikidsmd\\_bot',
+      '📩 Пишите нам: @didikidsmd_bot',
 };
 
 const userLang = {};
