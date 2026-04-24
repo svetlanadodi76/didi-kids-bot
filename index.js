@@ -80,6 +80,8 @@ const ORDER_INFO = {
 };
 
 const userLang = {};
+const userHistory = {};
+const MAX_HISTORY = 6;
 
 function detectLang(text) {
   if (!text) return 'ro';
@@ -170,6 +172,7 @@ bot.on('message', async (msg) => {
   const cleanText = text.replace(/@\w+/g, '').trim();
 
   if (cleanText === '/start' || text === '/start') {
+    userHistory[chatId] = [];
     return bot.sendMessage(chatId, welcomeText(lang), mainMenu(lang));
   }
 
@@ -188,15 +191,26 @@ bot.on('message', async (msg) => {
   userLang[chatId] = detectLang(cleanText || text);
   const updatedLang = getLang(chatId);
 
+  if (!userHistory[chatId]) userHistory[chatId] = [];
+  userHistory[chatId].push({ role: 'user', content: cleanText || text });
+  if (userHistory[chatId].length > MAX_HISTORY) {
+    userHistory[chatId] = userHistory[chatId].slice(-MAX_HISTORY);
+  }
+
   try {
     await bot.sendChatAction(chatId, 'typing');
     const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 400,
       system: systemPrompt(updatedLang),
-      messages: [{ role: 'user', content: cleanText || text }],
+      messages: userHistory[chatId],
     });
-    bot.sendMessage(chatId, response.content[0].text, { reply_markup: mainMenu(updatedLang).reply_markup });
+    const reply = response.content[0].text;
+    userHistory[chatId].push({ role: 'assistant', content: reply });
+    if (userHistory[chatId].length > MAX_HISTORY) {
+      userHistory[chatId] = userHistory[chatId].slice(-MAX_HISTORY);
+    }
+    bot.sendMessage(chatId, reply, { reply_markup: mainMenu(updatedLang).reply_markup });
   } catch (error) {
     console.error('AI error:', error.message);
     bot.sendMessage(chatId, updatedLang === 'ru' ? 'Произошла ошибка. Попробуйте ещё раз.' : 'A aparut o eroare. Incercati din nou.');
