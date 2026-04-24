@@ -81,7 +81,15 @@ const ORDER_INFO = {
 
 const userLang = {};
 const userHistory = {};
+const userOrder = {};
 const MAX_HISTORY = 6;
+const OWNER_ID = process.env.OWNER_CHAT_ID;
+
+const ORDER_STEPS = {
+  ro: ['Care este numele si prenumele tau?', 'Care este numarul tau de telefon?', 'Care este adresa de livrare?', 'Care este codul postal?'],
+  ru: ['Как вас зовут (имя и фамилия)?', 'Какой у вас номер телефона?', 'Какой адрес доставки?', 'Какой почтовый индекс?'],
+};
+const ORDER_FIELDS = ['nume', 'telefon', 'adresa', 'cod_postal'];
 
 function detectLang(text) {
   if (!text) return 'ro';
@@ -177,8 +185,68 @@ bot.on('message', async (msg) => {
   }
 
   if (['🛍 Cum sa comand', '🛍 Как заказать'].includes(cleanText)) {
-    return bot.sendMessage(chatId, ORDER_INFO[lang], { reply_markup: mainMenu(lang).reply_markup })
-      .catch(err => console.error('ORDER_INFO err:', err.message));
+    userOrder[chatId] = { step: 0, data: {} };
+    const startMsg = lang === 'ru'
+      ? '🛍 Incepem inregistrarea comenzii!\n\nMai intai, trimite-ne poza produsului dorit, apoi vom completa datele.'
+      : '🛍 Incepem inregistrarea comenzii!\n\nMai intai trimite-ne poza produsului dorit, apoi completam datele.';
+    return bot.sendMessage(chatId, startMsg, {
+      reply_markup: { keyboard: [[{ text: lang === 'ru' ? '❌ Отмена' : '❌ Anuleaza' }]], resize_keyboard: true },
+    }).catch(err => console.error('ORDER err:', err.message));
+  }
+
+  // Anulare comanda
+  if (['❌ Anuleaza', '❌ Отмена'].includes(cleanText)) {
+    delete userOrder[chatId];
+    return bot.sendMessage(chatId, lang === 'ru' ? 'Comanda anulata.' : 'Comanda anulata.', mainMenu(lang));
+  }
+
+  // Flux comanda activa
+  if (userOrder[chatId] !== undefined) {
+    const order = userOrder[chatId];
+
+    // Pasul 0: asteapta poza
+    if (order.step === 0) {
+      if (msg.photo) {
+        order.data.photo_id = msg.photo[msg.photo.length - 1].file_id;
+        order.data.caption = msg.caption || '';
+        order.step = 1;
+        return bot.sendMessage(chatId, ORDER_STEPS[lang][0], {
+          reply_markup: { keyboard: [[{ text: lang === 'ru' ? '❌ Отмена' : '❌ Anuleaza' }]], resize_keyboard: true },
+        });
+      } else {
+        return bot.sendMessage(chatId, lang === 'ru' ? 'Te rugam trimite o poza a produsului.' : 'Te rugam trimite o poza a produsului.');
+      }
+    }
+
+    // Pasii 1-4: colecteaza datele
+    if (order.step >= 1 && order.step <= 4) {
+      order.data[ORDER_FIELDS[order.step - 1]] = cleanText || text;
+      order.step++;
+
+      if (order.step <= 4) {
+        return bot.sendMessage(chatId, ORDER_STEPS[lang][order.step - 1], {
+          reply_markup: { keyboard: [[{ text: lang === 'ru' ? '❌ Отмена' : '❌ Anuleaza' }]], resize_keyboard: true },
+        });
+      }
+
+      // Comanda completa — trimite notificare
+      const d = order.data;
+      const notify = `🛒 COMANDA NOUA!\n\n👤 Nume: ${d.nume}\n📞 Telefon: ${d.telefon}\n📍 Adresa: ${d.adresa}\n📮 Cod postal: ${d.cod_postal}\n\n💬 Produs: ${d.caption || 'vezi poza'}`;
+
+      if (OWNER_ID) {
+        if (d.photo_id) {
+          bot.sendPhoto(OWNER_ID, d.photo_id, { caption: notify }).catch(() => bot.sendMessage(OWNER_ID, notify));
+        } else {
+          bot.sendMessage(OWNER_ID, notify);
+        }
+      }
+
+      delete userOrder[chatId];
+      const thanks = lang === 'ru'
+        ? '✅ Comanda a fost inregistrata! Te vom contacta in scurt timp pentru confirmare.'
+        : '✅ Comanda a fost inregistrata! Te vom contacta in scurt timp pentru confirmare.';
+      return bot.sendMessage(chatId, thanks, mainMenu(lang));
+    }
   }
 
   if (['❓ Intreaba Didi', '❓ Задать вопрос'].includes(cleanText)) {
