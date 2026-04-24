@@ -123,6 +123,22 @@ function validateCodPostal(text) {
   return /^\d{4}$/.test(text.trim());
 }
 
+async function verifyCodPostal(adresa, cod) {
+  try {
+    const res = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 50,
+      messages: [{
+        role: 'user',
+        content: `In Republica Moldova, codul postal "${cod}" corespunde localitatii/adresei "${adresa}"? Raspunde DOAR cu CORECT sau INCORECT.`
+      }]
+    });
+    return res.content[0].text.trim().toUpperCase().startsWith('CORECT');
+  } catch {
+    return true;
+  }
+}
+
 function livrareMenu(lang) {
   return {
     reply_markup: {
@@ -284,6 +300,17 @@ bot.on('message', async (msg) => {
       order.step++;
 
       if (order.step === 6) {
+        await bot.sendChatAction(chatId, 'typing');
+        const postalOk = await verifyCodPostal(order.data.adresa, order.data.cod_postal);
+        if (!postalOk) {
+          order.step = 5;
+          delete order.data.cod_postal;
+          return bot.sendMessage(chatId,
+            lang === 'ru'
+              ? `Codul postal ${value} nu corespunde adresei indicate. Verificati codul corect pe https://posta.md/ro/map si introduceti din nou.`
+              : `Codul postal ${value} nu corespunde adresei indicate. Verificati codul corect pe https://posta.md/ro/map si introduceti din nou.`,
+            cancelKb);
+        }
         return bot.sendMessage(chatId, ORDER_STEPS[lang][5], livrareMenu(lang));
       }
       return bot.sendMessage(chatId, ORDER_STEPS[lang][order.step - 1], cancelKb);
