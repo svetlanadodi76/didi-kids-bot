@@ -86,15 +86,53 @@ const MAX_HISTORY = 6;
 const OWNER_ID = process.env.OWNER_CHAT_ID;
 
 const ORDER_STEPS = {
-  ro: ['Ce marime doriti? (ex: 104 cm, 110 cm)', 'Care este numele si prenumele tau? (ex: Ion Popescu)', 'Care este numarul tau de telefon?', 'Care este adresa de livrare?', 'Care este codul postal?'],
-  ru: ['Какой размер вы хотите? (пр: 104 см, 110 см)', 'Как вас зовут (имя и фамилия)? (пр: Иван Попеску)', 'Какой у вас номер телефона?', 'Какой адрес доставки?', 'Какой почтовый индекс?'],
+  ro: [
+    'Ce marime doriti? (ex: 104 cm, 110 cm)',
+    'Care este numele si prenumele tau? (ex: Ion Popescu)',
+    'Care este numarul tau de telefon? (ex: 069123456)',
+    'Care este adresa de livrare? (oras/sat, strada, nr.)',
+    'Care este codul postal? (4 cifre, ex: 2001)',
+    'Cum doriti livrarea?',
+  ],
+  ru: [
+    'Какой размер вы хотите? (пр: 104 см, 110 см)',
+    'Как вас зовут (имя и фамилия)? (пр: Иван Попеску)',
+    'Какой у вас номер телефона? (пр: 069123456)',
+    'Какой адрес доставки? (город/село, улица, номер)',
+    'Какой почтовый индекс? (4 цифры, пр: 2001)',
+    'Как вы хотите получить заказ?',
+  ],
 };
-const ORDER_FIELDS = ['marime', 'nume', 'telefon', 'adresa', 'cod_postal'];
+const ORDER_FIELDS = ['marime', 'nume', 'telefon', 'adresa', 'cod_postal', 'livrare'];
 
 function validateNume(text) {
   const parts = text.trim().split(/\s+/);
   if (parts.length < 2) return false;
   return parts.every(p => /^[a-zA-ZăîâșțĂÎÂȘȚа-яёА-ЯЁ\-]{2,}$/.test(p));
+}
+
+function validateTelefon(text) {
+  return /^0[67]\d{7}$/.test(text.trim().replace(/\s+/g, ''));
+}
+
+function validateAdresa(text) {
+  return text.trim().length >= 10;
+}
+
+function validateCodPostal(text) {
+  return /^\d{4}$/.test(text.trim());
+}
+
+function livrareMenu(lang) {
+  return {
+    reply_markup: {
+      keyboard: [
+        [{ text: lang === 'ru' ? '📮 Prin posta' : '📮 Prin posta' }, { text: lang === 'ru' ? '🏃 Prin curier' : '🏃 Prin curier' }],
+        [{ text: lang === 'ru' ? '❌ Отмена' : '❌ Anuleaza' }],
+      ],
+      resize_keyboard: true,
+    },
+  };
 }
 
 function detectLang(text) {
@@ -224,32 +262,47 @@ bot.on('message', async (msg) => {
       }
     }
 
-    // Pasii 1-5: colecteaza datele
-    if (order.step >= 1 && order.step <= 5) {
-      const value = cleanText || text;
+    // Pasii 1-6: colecteaza datele
+    if (order.step >= 1 && order.step <= 6) {
+      const value = (cleanText || text).trim();
+      const cancelKb = { reply_markup: { keyboard: [[{ text: lang === 'ru' ? '❌ Отмена' : '❌ Anuleaza' }]], resize_keyboard: true } };
 
-      // Validare Nume (pasul 2)
+      // Validari
       if (order.step === 2 && !validateNume(value)) {
-        const errMsg = lang === 'ru'
-          ? 'Te rugam introdu Numele si Prenumele complet (ex: Ion Popescu).'
-          : 'Te rugam introdu Numele si Prenumele complet (ex: Ion Popescu).';
-        return bot.sendMessage(chatId, errMsg, {
-          reply_markup: { keyboard: [[{ text: lang === 'ru' ? '❌ Отмена' : '❌ Anuleaza' }]], resize_keyboard: true },
-        });
+        return bot.sendMessage(chatId, lang === 'ru'
+          ? 'Introdu Numele si Prenumele complet cu litere (ex: Ion Popescu).'
+          : 'Introdu Numele si Prenumele complet cu litere (ex: Ion Popescu).', cancelKb);
+      }
+      if (order.step === 3 && !validateTelefon(value)) {
+        return bot.sendMessage(chatId, lang === 'ru'
+          ? 'Numarul trebuie sa inceapa cu 06 sau 07 urmat de 7 cifre (ex: 069123456).'
+          : 'Numarul trebuie sa inceapa cu 06 sau 07 urmat de 7 cifre (ex: 069123456).', cancelKb);
+      }
+      if (order.step === 4 && !validateAdresa(value)) {
+        return bot.sendMessage(chatId, lang === 'ru'
+          ? 'Te rugam introdu adresa completa (oras/sat, strada, numar).'
+          : 'Te rugam introdu adresa completa (oras/sat, strada, numar).', cancelKb);
+      }
+      if (order.step === 5 && !validateCodPostal(value)) {
+        return bot.sendMessage(chatId, lang === 'ru'
+          ? 'Codul postal trebuie sa contina exact 4 cifre (ex: 2001).'
+          : 'Codul postal trebuie sa contina exact 4 cifre (ex: 2001).', cancelKb);
       }
 
       order.data[ORDER_FIELDS[order.step - 1]] = value;
       order.step++;
 
-      if (order.step <= 5) {
-        return bot.sendMessage(chatId, ORDER_STEPS[lang][order.step - 1], {
-          reply_markup: { keyboard: [[{ text: lang === 'ru' ? '❌ Отмена' : '❌ Anuleaza' }]], resize_keyboard: true },
-        });
+      if (order.step === 6) {
+        return bot.sendMessage(chatId, ORDER_STEPS[lang][5], livrareMenu(lang));
+      }
+
+      if (order.step <= 6) {
+        return bot.sendMessage(chatId, ORDER_STEPS[lang][order.step - 1], cancelKb);
       }
 
       // Comanda completa — trimite notificare
       const d = order.data;
-      const notify = `🛒 COMANDA NOUA!\n\n📦 Marime: ${d.marime}\n👤 Nume: ${d.nume}\n📞 Telefon: ${d.telefon}\n📍 Adresa: ${d.adresa}\n📮 Cod postal: ${d.cod_postal}\n\n💬 Produs: ${d.caption || 'vezi poza'}`;
+      const notify = `🛒 COMANDA NOUA!\n\n📦 Marime: ${d.marime}\n👤 Nume: ${d.nume}\n📞 Telefon: ${d.telefon}\n📍 Adresa: ${d.adresa}\n📮 Cod postal: ${d.cod_postal}\n🚚 Livrare: ${d.livrare}\n\n💬 Produs: ${d.caption || 'vezi poza'}`;
 
       if (OWNER_ID) {
         if (d.photo_id) {
@@ -261,8 +314,8 @@ bot.on('message', async (msg) => {
 
       delete userOrder[chatId];
       const thanks = lang === 'ru'
-        ? '✅ Comanda a fost inregistrata! Te vom contacta in scurt timp pentru confirmare.'
-        : '✅ Comanda a fost inregistrata! Te vom contacta in scurt timp pentru confirmare.';
+        ? '✅ Comanda inregistrata! Te vom contacta in scurt timp pentru confirmare.'
+        : '✅ Comanda inregistrata! Te vom contacta in scurt timp pentru confirmare.';
       return bot.sendMessage(chatId, thanks, mainMenu(lang));
     }
   }
