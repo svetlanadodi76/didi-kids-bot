@@ -368,4 +368,4 @@ bot.on('polling_error', (error) => {
   // suprima alte erori de polling ca sa nu depasim rate limit-ul
 });
 
-console.log('Didi Kids Bot pornit...');
+console.log('Didi Kids Bot pornit... v3');
