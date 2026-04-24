@@ -86,10 +86,16 @@ const MAX_HISTORY = 6;
 const OWNER_ID = process.env.OWNER_CHAT_ID;
 
 const ORDER_STEPS = {
-  ro: ['Care este numele si prenumele tau?', 'Care este numarul tau de telefon?', 'Care este adresa de livrare?', 'Care este codul postal?'],
-  ru: ['Как вас зовут (имя и фамилия)?', 'Какой у вас номер телефона?', 'Какой адрес доставки?', 'Какой почтовый индекс?'],
+  ro: ['Ce marime doriti? (ex: 104 cm, 110 cm)', 'Care este numele si prenumele tau? (ex: Ion Popescu)', 'Care este numarul tau de telefon?', 'Care este adresa de livrare?', 'Care este codul postal?'],
+  ru: ['Какой размер вы хотите? (пр: 104 см, 110 см)', 'Как вас зовут (имя и фамилия)? (пр: Иван Попеску)', 'Какой у вас номер телефона?', 'Какой адрес доставки?', 'Какой почтовый индекс?'],
 };
-const ORDER_FIELDS = ['nume', 'telefon', 'adresa', 'cod_postal'];
+const ORDER_FIELDS = ['marime', 'nume', 'telefon', 'adresa', 'cod_postal'];
+
+function validateNume(text) {
+  const parts = text.trim().split(/\s+/);
+  if (parts.length < 2) return false;
+  return parts.every(p => /^[a-zA-ZăîâșțĂÎÂȘȚа-яёА-ЯЁ\-]{2,}$/.test(p));
+}
 
 function detectLang(text) {
   if (!text) return 'ro';
@@ -218,12 +224,24 @@ bot.on('message', async (msg) => {
       }
     }
 
-    // Pasii 1-4: colecteaza datele
-    if (order.step >= 1 && order.step <= 4) {
-      order.data[ORDER_FIELDS[order.step - 1]] = cleanText || text;
+    // Pasii 1-5: colecteaza datele
+    if (order.step >= 1 && order.step <= 5) {
+      const value = cleanText || text;
+
+      // Validare Nume (pasul 2)
+      if (order.step === 2 && !validateNume(value)) {
+        const errMsg = lang === 'ru'
+          ? 'Te rugam introdu Numele si Prenumele complet (ex: Ion Popescu).'
+          : 'Te rugam introdu Numele si Prenumele complet (ex: Ion Popescu).';
+        return bot.sendMessage(chatId, errMsg, {
+          reply_markup: { keyboard: [[{ text: lang === 'ru' ? '❌ Отмена' : '❌ Anuleaza' }]], resize_keyboard: true },
+        });
+      }
+
+      order.data[ORDER_FIELDS[order.step - 1]] = value;
       order.step++;
 
-      if (order.step <= 4) {
+      if (order.step <= 5) {
         return bot.sendMessage(chatId, ORDER_STEPS[lang][order.step - 1], {
           reply_markup: { keyboard: [[{ text: lang === 'ru' ? '❌ Отмена' : '❌ Anuleaza' }]], resize_keyboard: true },
         });
@@ -231,7 +249,7 @@ bot.on('message', async (msg) => {
 
       // Comanda completa — trimite notificare
       const d = order.data;
-      const notify = `🛒 COMANDA NOUA!\n\n👤 Nume: ${d.nume}\n📞 Telefon: ${d.telefon}\n📍 Adresa: ${d.adresa}\n📮 Cod postal: ${d.cod_postal}\n\n💬 Produs: ${d.caption || 'vezi poza'}`;
+      const notify = `🛒 COMANDA NOUA!\n\n📦 Marime: ${d.marime}\n👤 Nume: ${d.nume}\n📞 Telefon: ${d.telefon}\n📍 Adresa: ${d.adresa}\n📮 Cod postal: ${d.cod_postal}\n\n💬 Produs: ${d.caption || 'vezi poza'}`;
 
       if (OWNER_ID) {
         if (d.photo_id) {
