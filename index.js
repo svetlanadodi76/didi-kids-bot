@@ -262,31 +262,22 @@ bot.on('message', async (msg) => {
       }
     }
 
-    // Pasii 1-6: colecteaza datele
-    if (order.step >= 1 && order.step <= 6) {
+    // Pasii 1-5: colecteaza datele
+    if (order.step >= 1 && order.step <= 5) {
       const value = (cleanText || text).trim();
-      const cancelKb = { reply_markup: { keyboard: [[{ text: lang === 'ru' ? '❌ Отмена' : '❌ Anuleaza' }]], resize_keyboard: true } };
+      const cancelKb = { reply_markup: { keyboard: [[{ text: '❌ Anuleaza' }]], resize_keyboard: true } };
 
-      // Validari
       if (order.step === 2 && !validateNume(value)) {
-        return bot.sendMessage(chatId, lang === 'ru'
-          ? 'Introdu Numele si Prenumele complet cu litere (ex: Ion Popescu).'
-          : 'Introdu Numele si Prenumele complet cu litere (ex: Ion Popescu).', cancelKb);
+        return bot.sendMessage(chatId, 'Introdu Numele si Prenumele complet cu litere (ex: Ion Popescu).', cancelKb);
       }
       if (order.step === 3 && !validateTelefon(value)) {
-        return bot.sendMessage(chatId, lang === 'ru'
-          ? 'Numarul trebuie sa inceapa cu 06 sau 07 urmat de 7 cifre (ex: 069123456).'
-          : 'Numarul trebuie sa inceapa cu 06 sau 07 urmat de 7 cifre (ex: 069123456).', cancelKb);
+        return bot.sendMessage(chatId, 'Numarul trebuie sa inceapa cu 06 sau 07 urmat de 7 cifre (ex: 069123456).', cancelKb);
       }
       if (order.step === 4 && !validateAdresa(value)) {
-        return bot.sendMessage(chatId, lang === 'ru'
-          ? 'Te rugam introdu adresa completa (oras/sat, strada, numar).'
-          : 'Te rugam introdu adresa completa (oras/sat, strada, numar).', cancelKb);
+        return bot.sendMessage(chatId, 'Introdu adresa completa: oras/sat, strada, numar.', cancelKb);
       }
       if (order.step === 5 && !validateCodPostal(value)) {
-        return bot.sendMessage(chatId, lang === 'ru'
-          ? 'Codul postal trebuie sa contina exact 4 cifre (ex: 2001).'
-          : 'Codul postal trebuie sa contina exact 4 cifre (ex: 2001).', cancelKb);
+        return bot.sendMessage(chatId, 'Codul postal trebuie sa fie exact 4 cifre (ex: 2001, 3100). Verifica pe posta.md', cancelKb);
       }
 
       order.data[ORDER_FIELDS[order.step - 1]] = value;
@@ -295,28 +286,41 @@ bot.on('message', async (msg) => {
       if (order.step === 6) {
         return bot.sendMessage(chatId, ORDER_STEPS[lang][5], livrareMenu(lang));
       }
+      return bot.sendMessage(chatId, ORDER_STEPS[lang][order.step - 1], cancelKb);
+    }
 
-      if (order.step <= 6) {
-        return bot.sendMessage(chatId, ORDER_STEPS[lang][order.step - 1], cancelKb);
+    // Pasul 6: optiune livrare
+    if (order.step === 6) {
+      const value = (cleanText || text).trim();
+      if (!['📮 Prin posta', '🏃 Prin curier'].includes(value)) {
+        return bot.sendMessage(chatId, 'Alege una din optiunile de mai jos:', livrareMenu(lang));
       }
+      order.data.livrare = value;
 
       // Comanda completa — trimite notificare
       const d = order.data;
       const notify = `🛒 COMANDA NOUA!\n\n📦 Marime: ${d.marime}\n👤 Nume: ${d.nume}\n📞 Telefon: ${d.telefon}\n📍 Adresa: ${d.adresa}\n📮 Cod postal: ${d.cod_postal}\n🚚 Livrare: ${d.livrare}\n\n💬 Produs: ${d.caption || 'vezi poza'}`;
+      console.log('Comanda noua:', notify);
 
-      if (OWNER_ID) {
+      const ownerId = process.env.OWNER_CHAT_ID;
+      if (ownerId) {
         if (d.photo_id) {
-          bot.sendPhoto(OWNER_ID, d.photo_id, { caption: notify }).catch(() => bot.sendMessage(OWNER_ID, notify));
+          bot.sendPhoto(ownerId, d.photo_id, { caption: notify })
+            .catch(() => bot.sendMessage(ownerId, notify).catch(e => console.error('notify err:', e.message)));
         } else {
-          bot.sendMessage(OWNER_ID, notify);
+          bot.sendMessage(ownerId, notify).catch(e => console.error('notify err:', e.message));
         }
+      } else {
+        console.error('OWNER_CHAT_ID nu este setat!');
       }
 
       delete userOrder[chatId];
-      const thanks = lang === 'ru'
-        ? '✅ Comanda inregistrata! Te vom contacta in scurt timp pentru confirmare.'
-        : '✅ Comanda inregistrata! Te vom contacta in scurt timp pentru confirmare.';
-      return bot.sendMessage(chatId, thanks, mainMenu(lang));
+      return bot.sendMessage(chatId, '✅ Comanda inregistrata! Te vom contacta in scurt timp pentru confirmare.', mainMenu(lang));
+    }
+
+    // Daca step e 5 si inca nu am aratat livrare menu
+    if (order.step > 5) {
+      return bot.sendMessage(chatId, ORDER_STEPS[lang][5], livrareMenu(lang));
     }
   }
 
