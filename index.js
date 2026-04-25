@@ -79,6 +79,8 @@ const userLang = {};
 const userHistory = {};
 const userOrder = {};
 const MAX_HISTORY = 6;
+const pendingConfirmations = {};
+let pendingCounter = 0;
 
 const ORDER_STEPS = {
   ro: [
@@ -431,12 +433,23 @@ bot.on('message', async (msg) => {
       const notify = `🛒 COMANDA NOUA!\n\n📦 Produs: ${d.cod_produs}\n📏 Marime: ${d.marime} cm\n💰 Pret: ${d.pret} lei\n👤 Nume: ${d.nume}\n📞 Telefon: ${d.telefon}\n📍 Adresa: ${d.adresa}\n📮 Cod postal: ${d.cod_postal}\n🚚 Livrare: ${d.livrare}`;
       console.log('Comanda noua:', notify);
 
-      // Notificare owner
+      // Notificare owner cu butoane confirmare
       const ownerId = process.env.OWNER_CHAT_ID;
       if (ownerId) {
+        const pendingKey = String(++pendingCounter);
+        pendingConfirmations[pendingKey] = { clientChatId: chatId, clientLang: lang, orderData: { ...d } };
+
+        const confirmKb = {
+          inline_keyboard: [[
+            { text: '✅ Confirma comanda', callback_data: `conf_${pendingKey}` },
+            { text: '❌ Anuleaza', callback_data: `canc_${pendingKey}` },
+          ]],
+        };
+
         const send = d.photo_id
-          ? bot.sendPhoto(ownerId, d.photo_id, { caption: notify }).catch(() => bot.sendMessage(ownerId, notify))
-          : bot.sendMessage(ownerId, notify);
+          ? bot.sendPhoto(ownerId, d.photo_id, { caption: notify, reply_markup: confirmKb })
+              .catch(() => bot.sendMessage(ownerId, notify, { reply_markup: confirmKb }))
+          : bot.sendMessage(ownerId, notify, { reply_markup: confirmKb });
         send.catch(e => console.error('notify err:', e.message));
       }
 
@@ -491,8 +504,54 @@ bot.on('message', async (msg) => {
   }
 });
 
+bot.on('callback_query', async (query) => {
+  const data = query.data || '';
+  if (!data.startsWith('conf_') && !data.startsWith('canc_')) return;
+
+  const key = data.replace(/^(conf_|canc_)/, '');
+  const pending = pendingConfirmations[key];
+
+  if (!pending) {
+    return bot.answerCallbackQuery(query.id, { text: 'Comanda nu mai este disponibila.' });
+  }
+
+  const { clientChatId, clientLang: cLang, orderData: d } = pending;
+  delete pendingConfirmations[key];
+
+  // Sterge butoanele din mesajul owner
+  bot.editMessageReplyMarkup({ inline_keyboard: [] }, {
+    chat_id: query.message.chat.id,
+    message_id: query.message.message_id,
+  }).catch(() => {});
+
+  if (data.startsWith('conf_')) {
+    const isPosta = d.livrare.includes('posta');
+
+    const clientMsg = cLang === 'ru'
+      ? `✅ Ваш заказ подтверждён!\n\n📦 Товар: ${d.cod_produs} — ${d.marime} cm\n💰 Цена: ${d.pret} lei\n\n🚚 Заказ будет доставлен завтра ${isPosta ? 'по Почте' : 'Курьером'}.\n${isPosta
+        ? '📮 При получении SMS-уведомления, пожалуйста, подойдите на почту для получения посылки.'
+        : '🏃 Пожалуйста, будьте доступны по телефону для получения посылки.'}\n\nХорошего вам дня! 🌸`
+      : `✅ Comanda Dvs. este confirmată!\n\n📦 Produs: ${d.cod_produs} — ${d.marime} cm\n💰 Preț: ${d.pret} lei\n\n🚚 Comanda va fi livrată mâine ${isPosta ? 'prin Poștă' : 'prin Curier'}.\n${isPosta
+        ? '📮 La primirea notificării SMS pe telefon, vă rugăm să vă apropiați la oficiul poștal pentru ridicarea coletului.'
+        : '🏃 Vă rugăm să fiți disponibil/ă la telefon pentru preluarea coletului.'}\n\nO zi frumoasă vă dorim în continuare! 🌸`;
+
+    bot.sendMessage(clientChatId, clientMsg, mainMenu(cLang))
+      .catch(e => console.error('confirm send err:', e.message));
+    bot.answerCallbackQuery(query.id, { text: '✅ Confirmat! Clientul a fost notificat.' });
+
+  } else {
+    const cancelMsg = cLang === 'ru'
+      ? '❌ Ne pare rău, comanda Dvs. a fost anulată. Contactați-ne pentru detalii.'
+      : '❌ Ne pare rău, comanda Dvs. a fost anulată. Contactați-ne pentru detalii.';
+
+    bot.sendMessage(clientChatId, cancelMsg, mainMenu(cLang))
+      .catch(e => console.error('cancel send err:', e.message));
+    bot.answerCallbackQuery(query.id, { text: '❌ Comanda anulata.' });
+  }
+});
+
 bot.on('polling_error', (error) => {
   if ((error.message || '').includes('409')) process.exit(1);
 });
 
-console.log('Didi Kids Bot pornit... v8');
+console.log('Didi Kids Bot pornit... v9');
