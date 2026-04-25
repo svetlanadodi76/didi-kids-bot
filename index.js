@@ -241,8 +241,8 @@ bot.on('message', async (msg) => {
     userOrder[chatId] = { step: 0, data: {} };
     return bot.sendMessage(chatId,
       lang === 'ru'
-        ? '🛍 Incepem inregistrarea comenzii!\n\nForwardeaza poza produsului dorit direct din canalul @didikidsmd.'
-        : '🛍 Incepem inregistrarea comenzii!\n\nForwardeaza poza produsului dorit direct din canalul @didikidsmd.',
+        ? '🛍 Incepem inregistrarea comenzii!\n\nTrimite poza produsului dorit cu codul produsului (ex: CH005) in descriere.'
+        : '🛍 Incepem inregistrarea comenzii!\n\nTrimite poza produsului dorit cu codul produsului (ex: CH005) in descriere.',
       { reply_markup: { keyboard: [[{ text: lang === 'ru' ? '❌ Отмена' : '❌ Anuleaza' }]], resize_keyboard: true } });
   }
 
@@ -257,30 +257,47 @@ bot.on('message', async (msg) => {
 
     // Pasul 0: foto + detectie cod produs
     if (order.step === 0) {
-      if (!msg.photo) {
-        return bot.sendMessage(chatId,
-          lang === 'ru'
-            ? 'Te rugam forwardeaza poza produsului din canalul @didikidsmd.'
-            : 'Te rugam forwardeaza poza produsului din canalul @didikidsmd.',
-          cancelKb);
+      // Sub-pas: asteapta codul dupa ce poza a fost trimisa fara cod in caption
+      if (order.waiting_code) {
+        const codeMatch = text.trim().match(/CH\d{3}/i);
+        if (!codeMatch) {
+          return bot.sendMessage(chatId,
+            lang === 'ru'
+              ? 'Scrie codul produsului din canalul @didikidsmd (ex: CH005):'
+              : 'Scrie codul produsului din canalul @didikidsmd (ex: CH005):',
+            cancelKb);
+        }
+        order.data.cod_produs = codeMatch[0].toUpperCase();
+        if (!order.data.descriere_produs) order.data.descriere_produs = order.data.cod_produs;
+        delete order.waiting_code;
+      } else {
+        if (!msg.photo) {
+          return bot.sendMessage(chatId,
+            lang === 'ru'
+              ? 'Trimite poza produsului dorit cu codul produsului (ex: CH005) in descriere.'
+              : 'Trimite poza produsului dorit cu codul produsului (ex: CH005) in descriere.',
+            cancelKb);
+        }
+
+        const caption = msg.caption || '';
+        order.data.photo_id = msg.photo[msg.photo.length - 1].file_id;
+        order.data.descriere_produs = caption.split('\n')[0] || '';
+        const codeMatch = caption.match(/CH\d{3}/i);
+
+        if (!codeMatch) {
+          order.waiting_code = true;
+          return bot.sendMessage(chatId,
+            lang === 'ru'
+              ? '📦 Poza primita!\n\nAcum scrie codul produsului din canalul @didikidsmd (ex: CH005):'
+              : '📦 Poza primita!\n\nAcum scrie codul produsului din canalul @didikidsmd (ex: CH005):',
+            cancelKb);
+        }
+
+        order.data.cod_produs = codeMatch[0].toUpperCase();
+        if (!order.data.descriere_produs) order.data.descriere_produs = order.data.cod_produs;
       }
 
-      const caption = msg.caption || '';
-      const codeMatch = caption.match(/CH\d{3}/i);
-
-      if (!codeMatch) {
-        return bot.sendMessage(chatId,
-          lang === 'ru'
-            ? '⚠️ Nu am gasit codul produsului in descriere.\nForwardeaza poza direct din canalul @didikidsmd (nu trimite poza din galerie).'
-            : '⚠️ Nu am gasit codul produsului in descriere.\nForwardeaza poza direct din canalul @didikidsmd (nu trimite poza din galerie).',
-          cancelKb);
-      }
-
-      const codProdus = codeMatch[0].toUpperCase();
-      order.data.photo_id = msg.photo[msg.photo.length - 1].file_id;
-      order.data.cod_produs = codProdus;
-      order.data.descriere_produs = caption.split('\n')[0] || codProdus;
-
+      const codProdus = order.data.cod_produs;
       await bot.sendChatAction(chatId, 'typing');
 
       try {
@@ -437,4 +454,4 @@ bot.on('polling_error', (error) => {
   if ((error.message || '').includes('409')) process.exit(1);
 });
 
-console.log('Didi Kids Bot pornit... v4');
+console.log('Didi Kids Bot pornit... v5');
