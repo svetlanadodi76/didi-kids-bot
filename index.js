@@ -366,15 +366,6 @@ bot.on('message', async (msg) => {
       order.step++;
 
       if (order.step === 6) {
-        await bot.sendChatAction(chatId, 'typing');
-        const postalOk = await verifyCodPostal(order.data.adresa, order.data.cod_postal);
-        if (!postalOk) {
-          order.step = 5;
-          delete order.data.cod_postal;
-          return bot.sendMessage(chatId,
-            `Codul postal ${value} nu corespunde adresei indicate. Verificati pe https://posta.md/ro/map si introduceti din nou.`,
-            cancelKb);
-        }
         return bot.sendMessage(chatId, ORDER_STEPS[lang][6], livrareMenu(lang));
       }
       return bot.sendMessage(chatId, ORDER_STEPS[lang][order.step], cancelKb);
@@ -456,4 +447,4 @@ bot.on('polling_error', (error) => {
   if ((error.message || '').includes('409')) process.exit(1);
 });
 
-console.log('Didi Kids Bot pornit... v6');
+console.log('Didi Kids Bot pornit... v7');
