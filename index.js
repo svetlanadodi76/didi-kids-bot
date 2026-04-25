@@ -259,15 +259,16 @@ bot.on('message', async (msg) => {
     if (order.step === 0) {
       // Sub-pas: asteapta codul dupa ce poza a fost trimisa fara cod in caption
       if (order.waiting_code) {
-        const codeMatch = text.trim().match(/CH\d{3}/i);
-        if (!codeMatch) {
+        const inputText = (msg.text || msg.caption || '').trim();
+        const rawMatch = inputText.match(/CH[\s\-]?\d{3}/i);
+        if (!rawMatch) {
           return bot.sendMessage(chatId,
             lang === 'ru'
               ? 'Scrie codul produsului din canalul @didikidsmd (ex: CH005):'
               : 'Scrie codul produsului din canalul @didikidsmd (ex: CH005):',
             cancelKb);
         }
-        order.data.cod_produs = codeMatch[0].toUpperCase();
+        order.data.cod_produs = rawMatch[0].replace(/[\s\-]/g, '').toUpperCase();
         if (!order.data.descriere_produs) order.data.descriere_produs = order.data.cod_produs;
         delete order.waiting_code;
       } else {
@@ -280,11 +281,12 @@ bot.on('message', async (msg) => {
         }
 
         const caption = msg.caption || '';
+        console.log('Step0 caption:', JSON.stringify(caption));
         order.data.photo_id = msg.photo[msg.photo.length - 1].file_id;
         order.data.descriere_produs = caption.split('\n')[0] || '';
-        const codeMatch = caption.match(/CH\d{3}/i);
+        const rawMatch = caption.match(/CH[\s\-]?\d{3}/i);
 
-        if (!codeMatch) {
+        if (!rawMatch) {
           order.waiting_code = true;
           return bot.sendMessage(chatId,
             lang === 'ru'
@@ -293,7 +295,7 @@ bot.on('message', async (msg) => {
             cancelKb);
         }
 
-        order.data.cod_produs = codeMatch[0].toUpperCase();
+        order.data.cod_produs = rawMatch[0].replace(/[\s\-]/g, '').toUpperCase();
         if (!order.data.descriere_produs) order.data.descriere_produs = order.data.cod_produs;
       }
 
@@ -454,4 +456,4 @@ bot.on('polling_error', (error) => {
   if ((error.message || '').includes('409')) process.exit(1);
 });
 
-console.log('Didi Kids Bot pornit... v5');
+console.log('Didi Kids Bot pornit... v6');
