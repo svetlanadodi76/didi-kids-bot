@@ -62,10 +62,12 @@ async function addComanda(data) {
     valueInputOption: 'USER_ENTERED',
     resource: {
       values: [[
+        // A=Nr, B=Data, C=Client, D=Telefon, E=Adresa
         nr, dateStr, data.nume, data.telefon, data.adresa,
-        `${data.cod_produs} - ${data.marime}`,
-        data.descriere_produs, data.pret, '', data.pret, '',
-        data.livrare, '', '', 'Nouă', '',
+        // F=Cod Produs, G=Descriere, H=Cantitate, I=Pret/buc, J=Cost/buc
+        `${data.cod_produs} - ${data.marime}`, data.descriere_produs, 1, data.pret, '',
+        // K=Total Vanzare, L=Total Cost, M=Metoda Livrare, N=Cost Livrare, O=AWB, P=Status, Q=Profit
+        data.pret, '', data.livrare, '', '', '', '',
       ]],
     },
   });
