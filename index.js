@@ -1,6 +1,7 @@
 const TelegramBot = require('node-telegram-bot-api');
 const Anthropic = require('@anthropic-ai/sdk');
 const { google } = require('googleapis');
+const https = require('https');
 
 process.on('unhandledRejection', () => {});
 process.on('uncaughtException', (err) => { console.error('err:', err.message); });
@@ -128,6 +129,46 @@ async function verifyCodPostal(adresa, cod) {
     });
     return res.content[0].text.trim().toUpperCase().startsWith('CORECT');
   } catch { return true; }
+}
+
+function downloadBuffer(url) {
+  return new Promise((resolve, reject) => {
+    https.get(url, (res) => {
+      const chunks = [];
+      res.on('data', c => chunks.push(c));
+      res.on('end', () => resolve(Buffer.concat(chunks)));
+      res.on('error', reject);
+    }).on('error', reject);
+  });
+}
+
+async function extractCodeFromImage(fileId) {
+  try {
+    const file = await bot.getFile(fileId);
+    const fileUrl = `https://api.telegram.org/file/bot${process.env.TELEGRAM_TOKEN}/${file.file_path}`;
+    const mediaType = (file.file_path || '').toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+    const imgBuffer = await downloadBuffer(fileUrl);
+    const base64 = imgBuffer.toString('base64');
+
+    const result = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 20,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+          { type: 'text', text: 'Gaseste in imagine un cod de forma CHxxx unde xxx sunt exact 3 cifre (ex: CH005, CH001). Raspunde DOAR cu codul gasit sau NEGASIT.' },
+        ],
+      }],
+    });
+
+    const responseText = result.content[0].text.trim().toUpperCase();
+    const match = responseText.match(/CH\d{3}/);
+    return match ? match[0] : null;
+  } catch (e) {
+    console.error('Vision err:', e.message);
+    return null;
+  }
 }
 
 function sizeMenu(marimi, lang) {
@@ -287,16 +328,23 @@ bot.on('message', async (msg) => {
         const rawMatch = caption.match(/CH[\s\-]?\d{3}/i);
 
         if (!rawMatch) {
-          order.waiting_code = true;
-          return bot.sendMessage(chatId,
-            lang === 'ru'
-              ? '📦 Poza primita!\n\nAcum scrie codul produsului din canalul @didikidsmd (ex: CH005):'
-              : '📦 Poza primita!\n\nAcum scrie codul produsului din canalul @didikidsmd (ex: CH005):',
-            cancelKb);
+          await bot.sendChatAction(chatId, 'typing');
+          const visionCode = await extractCodeFromImage(order.data.photo_id);
+          if (visionCode) {
+            order.data.cod_produs = visionCode;
+            if (!order.data.descriere_produs) order.data.descriere_produs = visionCode;
+          } else {
+            order.waiting_code = true;
+            return bot.sendMessage(chatId,
+              lang === 'ru'
+                ? '📦 Poza primita!\n\nAcum scrie codul produsului din canalul @didikidsmd (ex: CH005):'
+                : '📦 Poza primita!\n\nAcum scrie codul produsului din canalul @didikidsmd (ex: CH005):',
+              cancelKb);
+          }
+        } else {
+          order.data.cod_produs = rawMatch[0].replace(/[\s\-]/g, '').toUpperCase();
+          if (!order.data.descriere_produs) order.data.descriere_produs = order.data.cod_produs;
         }
-
-        order.data.cod_produs = rawMatch[0].replace(/[\s\-]/g, '').toUpperCase();
-        if (!order.data.descriere_produs) order.data.descriere_produs = order.data.cod_produs;
       }
 
       const codProdus = order.data.cod_produs;
@@ -447,4 +495,4 @@ bot.on('polling_error', (error) => {
   if ((error.message || '').includes('409')) process.exit(1);
 });
 
-console.log('Didi Kids Bot pornit... v7');
+console.log('Didi Kids Bot pornit... v8');
