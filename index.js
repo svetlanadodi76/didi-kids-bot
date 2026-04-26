@@ -259,10 +259,13 @@ function getLang(chatId) { return userLang[chatId] || 'ro'; }
 function mainMenu(lang) {
   return {
     reply_markup: {
-      keyboard: [[
-        { text: lang === 'ru' ? '🛍 Как заказать' : '🛍 Cum sa comand' },
-        { text: lang === 'ru' ? '❓ Задать вопрос' : '❓ Intreaba Didi' },
-      ]],
+      keyboard: [
+        [
+          { text: lang === 'ru' ? '🛍 Как заказать' : '🛍 Cum sa comand' },
+          { text: lang === 'ru' ? '❓ Задать вопрос' : '❓ Intreaba Didi' },
+        ],
+        [{ text: lang === 'ru' ? '📞 Contactati-ne' : '📞 Contactati-ne' }],
+      ],
       resize_keyboard: true,
     },
     parse_mode: 'Markdown',
@@ -289,8 +292,9 @@ function systemPrompt(lang) {
 2. НЕ упоминай другие магазины или бренды.
 3. Давай советы ТОЛЬКО по уходу за одеждой (стирка, глажка) по типу ткани.
 4. Отвечай КОРОТКО: максимум 2-3 предложения.
-5. Если не знаешь ответа, скажи: "Не имею этой информации, но вы можете спросить нас напрямую через кнопку Задать вопрос."
-6. Оставайся на теме детской одежды — если спрашивают о другом, вежливо перенаправь.
+5. Если клиент хочет заказать или купить — скажи ТОЛЬКО: "Нажми кнопку 🛍 Как заказать в меню, чтобы оформить заказ." Не задавай вопросов.
+6. Если не знаешь ответа, скажи: "Не имею этой информации. Нажми 📞 Contactati-ne для связи с нами."
+7. Оставайся на теме детской одежды — если спрашивают о другом, вежливо перенаправь.
 Отвечай на русском.`
     : `Esti asistentul magazinului de haine pentru copii Didi Kids MD (Moldova).
 
@@ -304,8 +308,9 @@ REGULI:
 2. NU vorbi despre alte magazine sau produse.
 3. Da sfaturi DOAR despre intretinerea hainelor (spalare, calcare) dupa tipul tesaturii.
 4. Raspunsuri SCURTE: maxim 2-3 propozitii per mesaj.
-5. Daca nu stii raspunsul, spune: "Nu am informatia asta, dar ne poti contacta direct prin butonul Intreaba Didi."
-6. Ramai pe tema hainelor de copii — daca clientul intreaba altceva, redirectioneaza politicos.
+5. Daca clientul vrea sa comande sau sa cumpere — spune DOAR: "Apasa butonul 🛍 Cum sa comand din meniu pentru a plasa comanda." Nu pune intrebari.
+6. Daca nu stii raspunsul, spune: "Nu am aceasta informatie. Apasa 📞 Contactati-ne pentru a ne contacta direct."
+7. Ramai pe tema hainelor de copii — daca clientul intreaba altceva, redirectioneaza politicos.
 Raspunde in romana.`;
 }
 
@@ -336,14 +341,26 @@ bot.on('message', async (msg) => {
     return bot.sendMessage(chatId, welcomeText(lang), mainMenu(lang));
   }
 
+  if (['📞 Contactati-ne'].includes(cleanText)) {
+    const phone = process.env.OWNER_PHONE || '';
+    const contactMsg = phone
+      ? `📞 Ne puteti contacta:\n📱 Telefon/WhatsApp: ${phone}\n💬 Telegram: @didikidsmd\n🕐 Luni-Vineri: 9:00-18:00`
+      : `📞 Ne puteti contacta:\n💬 Telegram: @didikidsmd\n🕐 Luni-Vineri: 9:00-18:00`;
+    return bot.sendMessage(chatId, contactMsg, mainMenu(lang));
+  }
+
   if (['🛍 Cum sa comand', '🛍 Как заказать'].includes(cleanText)) {
     if (isGroup(msg)) {
       const botUser = process.env.BOT_USERNAME || '';
+      const opts = {
+        reply_to_message_id: msg.message_id,
+        ...(botUser ? { reply_markup: { inline_keyboard: [[{ text: '💬 Deschide chat privat', url: `https://t.me/${botUser}?start=start` }]] } } : {}),
+      };
       return bot.sendMessage(chatId,
         lang === 'ru'
-          ? `🛍 Pentru comenzi, scrie-mi în mesaj privat${botUser ? `: @${botUser}` : '.'}`
-          : `🛍 Pentru comenzi, scrie-mi în mesaj privat${botUser ? `: @${botUser}` : '.'}`,
-        { reply_to_message_id: msg.message_id });
+          ? `🛍 Comenzile se plaseaza in mesaj privat${botUser ? ` cu @${botUser}` : '.'}`
+          : `🛍 Comenzile se plaseaza in mesaj privat${botUser ? ` cu @${botUser}` : '.'}`,
+        opts);
     }
     userOrder[chatId] = { step: 0, data: {} };
     return bot.sendMessage(chatId,
@@ -545,6 +562,21 @@ bot.on('message', async (msg) => {
   userLang[chatId] = detectLang(cleanText || text);
   const updatedLang = getLang(chatId);
 
+  // Detectie intentie comandă — redirectionare directa fara AI
+  const msgLower = (cleanText || text).toLowerCase();
+  const orderIntent = [
+    'vreau sa comand', 'vreau să comand', 'cum comand', 'cum se comanda',
+    'doresc sa comand', 'pot comanda', 'as vrea sa comand',
+    'хочу заказать', 'как заказать', 'хочу купить', 'хочу сделать заказ',
+  ].some(k => msgLower.includes(k));
+  if (orderIntent) {
+    return bot.sendMessage(chatId,
+      updatedLang === 'ru'
+        ? '🛍 Pentru a plasa o comandă, apasă butonul de mai jos 👇'
+        : '🛍 Pentru a plasa o comandă, apasă butonul de mai jos 👇',
+      { reply_markup: { keyboard: [[{ text: updatedLang === 'ru' ? '🛍 Как заказать' : '🛍 Cum sa comand' }]], resize_keyboard: true } });
+  }
+
   if (!userHistory[chatId]) userHistory[chatId] = [];
   userHistory[chatId].push({ role: 'user', content: cleanText || text });
   if (userHistory[chatId].length > MAX_HISTORY) {
@@ -624,4 +656,4 @@ bot.on('polling_error', (error) => {
   if ((error.message || '').includes('409')) process.exit(1);
 });
 
-console.log('Didi Kids Bot pornit... v17');
+console.log('Didi Kids Bot pornit... v18');
