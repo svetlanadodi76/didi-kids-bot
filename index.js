@@ -50,14 +50,15 @@ async function addComanda(data) {
   console.log('addComanda start, SHEET_ID:', SHEET_ID ? SHEET_ID.substring(0, 10) + '...' : 'LIPSA');
   const sheets = getSheetsClient();
 
-  // Numaram doar coloana A (fara formule) ca sa gasim randul exact
+  // Folosim coloana C (Client) - nu are formule, doar date reale
   const countRes = await sheets.spreadsheets.values.get({
     spreadsheetId: SHEET_ID,
-    range: 'Comenzi!A:A',
+    range: 'Comenzi!C:C',
     valueRenderOption: 'UNFORMATTED_VALUE',
   });
   const nr = (countRes.data.values || []).length; // header + comenzi existente
   const targetRow = nr + 1; // randul urmator liber
+  console.log('addComanda: nr comenzi existente =', nr - 1, '-> scriu pe randul', targetRow);
 
   const now = new Date();
   const dateStr = `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()}`;
@@ -601,4 +602,4 @@ bot.on('polling_error', (error) => {
   if ((error.message || '').includes('409')) process.exit(1);
 });
 
-console.log('Didi Kids Bot pornit... v12');
+console.log('Didi Kids Bot pornit... v13');
