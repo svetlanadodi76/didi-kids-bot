@@ -326,6 +326,14 @@ bot.on('message', async (msg) => {
   }
 
   if (['🛍 Cum sa comand', '🛍 Как заказать'].includes(cleanText)) {
+    if (isGroup(msg)) {
+      const botUser = process.env.BOT_USERNAME || '';
+      return bot.sendMessage(chatId,
+        lang === 'ru'
+          ? `🛍 Pentru comenzi, scrie-mi în mesaj privat${botUser ? `: @${botUser}` : '.'}`
+          : `🛍 Pentru comenzi, scrie-mi în mesaj privat${botUser ? `: @${botUser}` : '.'}`,
+        { reply_to_message_id: msg.message_id });
+    }
     userOrder[chatId] = { step: 0, data: {} };
     return bot.sendMessage(chatId,
       lang === 'ru'
@@ -604,4 +612,4 @@ bot.on('polling_error', (error) => {
   if ((error.message || '').includes('409')) process.exit(1);
 });
 
-console.log('Didi Kids Bot pornit... v14');
+console.log('Didi Kids Bot pornit... v15');
