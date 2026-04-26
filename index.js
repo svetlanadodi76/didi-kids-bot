@@ -50,15 +50,17 @@ async function addComanda(data) {
   console.log('addComanda start, SHEET_ID:', SHEET_ID ? SHEET_ID.substring(0, 10) + '...' : 'LIPSA');
   const sheets = getSheetsClient();
 
-  // Folosim coloana C (Client) - nu are formule, doar date reale
+  // Coloana C (Client) - filtram doar celulele cu text real (nu formule goale)
   const countRes = await sheets.spreadsheets.values.get({
     spreadsheetId: SHEET_ID,
     range: 'Comenzi!C:C',
-    valueRenderOption: 'UNFORMATTED_VALUE',
   });
-  const nr = (countRes.data.values || []).length; // header + comenzi existente
-  const targetRow = nr + 1; // randul urmator liber
-  console.log('addComanda: nr comenzi existente =', nr - 1, '-> scriu pe randul', targetRow);
+  const filledRows = (countRes.data.values || []).filter(r => r[0] && String(r[0]).trim() !== '');
+  // filledRows = header + clienti reali
+  const dataCount = filledRows.length - 1; // scadem header-ul
+  const targetRow = dataCount + 2; // randul urmator dupa comenzile existente (date incep de la rand 2)
+  const nr = dataCount + 1; // numarul noii comenzi
+  console.log('addComanda: comenzi existente =', dataCount, '-> scriu pe randul', targetRow);
 
   const now = new Date();
   const dateStr = `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()}`;
@@ -576,7 +578,7 @@ bot.on('callback_query', async (query) => {
       ? `✅ Ваш заказ подтверждён!\n\n📦 Товар: ${d.cod_produs} — ${d.marime} cm\n💰 Цена: ${d.pret} lei\n\n🚚 Заказ будет доставлен завтра ${isPosta ? 'по Почте' : 'Курьером'}.\n${isPosta
         ? '📮 При получении SMS-уведомления, пожалуйста, подойдите на почту для получения посылки.'
         : '🏃 Пожалуйста, будьте доступны по телефону для получения посылки.'}\n\nХорошего вам дня! 🌸`
-      : `✅ Comanda Dvs. este confirmată!\n\n📦 Produs: ${d.cod_produs} — ${d.marime} cm\n💰 Preț: ${d.pret} lei\n\n🚚 Comanda va fi livrată mâine ${isPosta ? 'prin Poștă' : 'prin Curier'}.\n${isPosta
+      : `✅ Comanda Dvs. este confirmată!\n\n📦 Produs: ${d.cod_produs} — ${d.marime} cm\n💰 Preț: ${d.pret} lei\n\n🚚 Comanda va fi transmisă mâine ${isPosta ? 'prin Poștă' : 'prin Curier'}.\n${isPosta
         ? '📮 La primirea notificării SMS pe telefon, vă rugăm să vă apropiați la oficiul poștal pentru ridicarea coletului.'
         : '🏃 Vă rugăm să fiți disponibil/ă la telefon pentru preluarea coletului.'}\n\nO zi frumoasă vă dorim în continuare! 🌸`;
 
@@ -602,4 +604,4 @@ bot.on('polling_error', (error) => {
   if ((error.message || '').includes('409')) process.exit(1);
 });
 
-console.log('Didi Kids Bot pornit... v13');
+console.log('Didi Kids Bot pornit... v14');
