@@ -70,6 +70,7 @@ async function addComanda(data) {
 
   // Scriem doar coloanele cu date manuale (A:I si M)
   // Sarim J, K, L, N, O, P, Q care au formule de calcul in sheet
+  // Scriem si in Livrari!A nr comenzii ca sa se auto-completeze B (Client) din formula
   await sheets.spreadsheets.values.batchUpdate({
     spreadsheetId: SHEET_ID,
     resource: {
@@ -82,6 +83,10 @@ async function addComanda(data) {
         {
           range: `Comenzi!M${targetRow}`,
           values: [[data.livrare]],
+        },
+        {
+          range: `'Livrări'!A${targetRow}`,
+          values: [[nr]],
         },
       ],
     },
@@ -619,4 +624,4 @@ bot.on('polling_error', (error) => {
   if ((error.message || '').includes('409')) process.exit(1);
 });
 
-console.log('Didi Kids Bot pornit... v16');
+console.log('Didi Kids Bot pornit... v17');
