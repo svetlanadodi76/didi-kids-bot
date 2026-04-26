@@ -39,7 +39,8 @@ async function getStocForProduct(codProdus) {
         const parts = String(row[1] || '').split(' - ');
         const marime = parts[parts.length - 1].trim();
         const pret = Math.round(parseFloat(row[7]) || 0);
-        result.push({ marime, pret });
+        const fullDesc = String(row[1] || ''); // ex: "CH005 - Costum jeans miki mouse - 120"
+        result.push({ marime, pret, fullDesc });
       }
     }
   }
@@ -50,34 +51,39 @@ async function addComanda(data) {
   console.log('addComanda start, SHEET_ID:', SHEET_ID ? SHEET_ID.substring(0, 10) + '...' : 'LIPSA');
   const sheets = getSheetsClient();
 
-  // Coloana C (Client) - filtram doar celulele cu text real (nu formule goale)
+  // Coloana D (Telefon) - nu are formule, doar numere reale de telefon
   const countRes = await sheets.spreadsheets.values.get({
     spreadsheetId: SHEET_ID,
-    range: 'Comenzi!C:C',
+    range: 'Comenzi!D:D',
   });
   const filledRows = (countRes.data.values || []).filter(r => r[0] && String(r[0]).trim() !== '');
-  // filledRows = header + clienti reali
-  const dataCount = filledRows.length - 1; // scadem header-ul
-  const targetRow = dataCount + 2; // randul urmator dupa comenzile existente (date incep de la rand 2)
-  const nr = dataCount + 1; // numarul noii comenzi
+  const dataCount = filledRows.length - 1; // minus header "Telefon"
+  const targetRow = dataCount + 2;
+  const nr = dataCount + 1;
   console.log('addComanda: comenzi existente =', dataCount, '-> scriu pe randul', targetRow);
 
   const now = new Date();
   const dateStr = `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()}`;
 
-  await sheets.spreadsheets.values.update({
+  // Denumirea completa din Stoc pentru col F (trebuie sa corespunda dropdown-ului)
+  const colF = data.stoc_full || `${data.cod_produs} - ${data.marime}`;
+
+  // Scriem doar coloanele cu date manuale (A:I si M)
+  // Sarim J, K, L, N, O, P, Q care au formule de calcul in sheet
+  await sheets.spreadsheets.values.batchUpdate({
     spreadsheetId: SHEET_ID,
-    range: `Comenzi!A${targetRow}:Q${targetRow}`,
-    valueInputOption: 'USER_ENTERED',
     resource: {
-      values: [[
-        // A=Nr, B=Data, C=Client, D=Telefon, E=Adresa
-        nr, dateStr, data.nume, data.telefon, data.adresa,
-        // F=Cod Produs, G=Descriere, H=Cantitate, I=Pret/buc, J=Cost/buc
-        `${data.cod_produs} - ${data.marime}`, data.descriere_produs, 1, data.pret, '',
-        // K=Total Vanzare, L=Total Cost, M=Metoda Livrare, N=Cost Livrare, O=AWB, P=Status, Q=Profit
-        data.pret, '', data.livrare, '', '', '', '',
-      ]],
+      valueInputOption: 'USER_ENTERED',
+      data: [
+        {
+          range: `Comenzi!A${targetRow}:I${targetRow}`,
+          values: [[nr, dateStr, data.nume, data.telefon, data.adresa, colF, data.descriere_produs, 1, data.pret]],
+        },
+        {
+          range: `Comenzi!M${targetRow}`,
+          values: [[data.livrare]],
+        },
+      ],
     },
   });
   console.log('addComanda scris pe randul:', targetRow);
@@ -444,6 +450,7 @@ bot.on('message', async (msg) => {
 
       order.data.marime = value;
       order.data.pret = selected.pret;
+      order.data.stoc_full = selected.fullDesc; // denumirea completa din Stoc pentru col F
       order.step = 2;
       return bot.sendMessage(chatId, ORDER_STEPS[lang][2], cancelKb);
     }
@@ -612,4 +619,4 @@ bot.on('polling_error', (error) => {
   if ((error.message || '').includes('409')) process.exit(1);
 });
 
-console.log('Didi Kids Bot pornit... v15');
+console.log('Didi Kids Bot pornit... v16');
