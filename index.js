@@ -47,6 +47,7 @@ async function getStocForProduct(codProdus) {
 }
 
 async function addComanda(data) {
+  console.log('addComanda start, SHEET_ID:', SHEET_ID ? SHEET_ID.substring(0, 10) + '...' : 'LIPSA');
   const sheets = getSheetsClient();
   const countRes = await sheets.spreadsheets.values.get({
     spreadsheetId: SHEET_ID,
@@ -456,8 +457,10 @@ bot.on('message', async (msg) => {
       // Scrie in Google Sheets
       if (SHEET_ID) {
         addComanda(d)
-          .then(() => console.log('Comanda salvata in Sheets'))
-          .catch(e => console.error('Sheets write err:', e.message));
+          .then(() => console.log('✅ Comanda salvata in Sheets'))
+          .catch(e => console.error('❌ Sheets write err:', e.message, e.stack));
+      } else {
+        console.error('❌ GOOGLE_SHEET_ID lipsa din env');
       }
 
       delete userOrder[chatId];
@@ -554,4 +557,4 @@ bot.on('polling_error', (error) => {
   if ((error.message || '').includes('409')) process.exit(1);
 });
 
-console.log('Didi Kids Bot pornit... v9');
+console.log('Didi Kids Bot pornit... v10');
