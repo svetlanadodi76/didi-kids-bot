@@ -79,6 +79,42 @@ async function addComanda(data) {
   });
   console.log('addComanda scris pe randul:', targetRow);
 }
+
+async function updateStatusComanda(orderData, status) {
+  try {
+    const sheets = getSheetsClient();
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: 'Comenzi!A:P',
+      valueRenderOption: 'UNFORMATTED_VALUE',
+    });
+    const rows = res.data.values || [];
+
+    // Cauta de jos in sus cel mai recent rand cu acelasi telefon+nume
+    let targetRow = -1;
+    for (let i = rows.length - 1; i >= 1; i--) {
+      if (rows[i][2] === orderData.nume && String(rows[i][3]) === String(orderData.telefon)) {
+        targetRow = i + 1;
+        break;
+      }
+    }
+
+    if (targetRow === -1) {
+      console.error('updateStatus: rand negasit pentru', orderData.nume, orderData.telefon);
+      return;
+    }
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID,
+      range: `Comenzi!P${targetRow}`,
+      valueInputOption: 'USER_ENTERED',
+      resource: { values: [[status]] },
+    });
+    console.log('Status actualizat randul', targetRow, '->', status);
+  } catch (e) {
+    console.error('updateStatus err:', e.message);
+  }
+}
 // ───────────────────────────────────────────────────────────────────────────────
 
 const userLang = {};
@@ -554,6 +590,9 @@ bot.on('callback_query', async (query) => {
 
     bot.sendMessage(clientChatId, cancelMsg, mainMenu(cLang))
       .catch(e => console.error('cancel send err:', e.message));
+
+    if (SHEET_ID) updateStatusComanda(d, 'Anulată');
+
     bot.answerCallbackQuery(query.id, { text: '❌ Comanda anulata.' });
   }
 });
@@ -562,4 +601,4 @@ bot.on('polling_error', (error) => {
   if ((error.message || '').includes('409')) process.exit(1);
 });
 
-console.log('Didi Kids Bot pornit... v11');
+console.log('Didi Kids Bot pornit... v12');
