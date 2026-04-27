@@ -39,7 +39,7 @@ async function getStocForProduct(codProdus) {
         const parts = String(row[1] || '').split(' - ');
         const marime = parts[parts.length - 1].trim();
         const pret = Math.round(parseFloat(row[7]) || 0);
-        const fullDesc = String(row[1] || ''); // ex: "CH005 - Costum jeans miki mouse - 120"
+        const fullDesc = String(row[1] || '');
         result.push({ marime, pret, fullDesc });
       }
     }
@@ -47,17 +47,90 @@ async function getStocForProduct(codProdus) {
   return result;
 }
 
+async function getAlternativesBySize(marime, excludeCod) {
+  try {
+    const sheets = getSheetsClient();
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: 'Stoc!A:I',
+      valueRenderOption: 'UNFORMATTED_VALUE',
+    });
+    const rows = res.data.values || [];
+    const found = [];
+    const seenCods = new Set([excludeCod.toUpperCase()]);
+
+    for (const row of rows) {
+      const cod = String(row[0] || '').toUpperCase();
+      if (!cod.match(/^CH\d{3}$/)) continue;
+      if (seenCods.has(cod)) continue;
+      const stoc = parseFloat(row[6]) || 0;
+      if (stoc <= 0) continue;
+      const parts = String(row[1] || '').split(' - ');
+      const rowMarime = parts[parts.length - 1].trim();
+      if (rowMarime === String(marime)) {
+        seenCods.add(cod);
+        const pret = Math.round(parseFloat(row[7]) || 0);
+        const descriere = String(row[1] || '');
+        found.push({ cod, descriere, pret });
+        if (found.length >= 3) break;
+      }
+    }
+    return found;
+  } catch (e) {
+    console.error('getAlternativesBySize err:', e.message);
+    return [];
+  }
+}
+
+async function saveToCatalog(cod, fileId, description) {
+  if (!SHEET_ID) return;
+  try {
+    const sheets = getSheetsClient();
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SHEET_ID,
+      range: 'Catalog!A:C',
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      resource: { values: [[cod, fileId, description || '']] },
+    });
+    console.log('Catalog: salvat', cod);
+  } catch (e) {
+    console.error('saveToCatalog err:', e.message);
+  }
+}
+
+async function getCatalogFileId(cod) {
+  if (!SHEET_ID) return null;
+  try {
+    const sheets = getSheetsClient();
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: 'Catalog!A:B',
+    });
+    const rows = res.data.values || [];
+    let lastFileId = null;
+    for (const row of rows) {
+      if (String(row[0] || '').toUpperCase() === cod.toUpperCase() && row[1]) {
+        lastFileId = row[1];
+      }
+    }
+    return lastFileId;
+  } catch (e) {
+    console.error('getCatalogFileId err:', e.message);
+    return null;
+  }
+}
+
 async function addComanda(data) {
   console.log('addComanda start, SHEET_ID:', SHEET_ID ? SHEET_ID.substring(0, 10) + '...' : 'LIPSA');
   const sheets = getSheetsClient();
 
-  // Coloana D (Telefon) - nu are formule, doar numere reale de telefon
   const countRes = await sheets.spreadsheets.values.get({
     spreadsheetId: SHEET_ID,
     range: 'Comenzi!D:D',
   });
   const filledRows = (countRes.data.values || []).filter(r => r[0] && String(r[0]).trim() !== '');
-  const dataCount = filledRows.length - 1; // minus header "Telefon"
+  const dataCount = filledRows.length - 1;
   const targetRow = dataCount + 2;
   const nr = dataCount + 1;
   console.log('addComanda: comenzi existente =', dataCount, '-> scriu pe randul', targetRow);
@@ -65,12 +138,8 @@ async function addComanda(data) {
   const now = new Date();
   const dateStr = `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()}`;
 
-  // Denumirea completa din Stoc pentru col F (trebuie sa corespunda dropdown-ului)
   const colF = data.stoc_full || `${data.cod_produs} - ${data.marime}`;
 
-  // Scriem doar coloanele cu date manuale (A:I si M)
-  // Sarim J, K, L, N, O, P, Q care au formule de calcul in sheet
-  // Scriem si in Livrari!A nr comenzii ca sa se auto-completeze B (Client) din formula
   await sheets.spreadsheets.values.batchUpdate({
     spreadsheetId: SHEET_ID,
     resource: {
@@ -104,7 +173,6 @@ async function updateStatusComanda(orderData, status) {
     });
     const rows = res.data.values || [];
 
-    // Cauta de jos in sus cel mai recent rand cu acelasi telefon+nume
     let targetRow = -1;
     for (let i = rows.length - 1; i >= 1; i--) {
       if (rows[i][2] === orderData.nume && String(rows[i][3]) === String(orderData.telefon)) {
@@ -134,14 +202,15 @@ async function updateStatusComanda(orderData, status) {
 const userLang = {};
 const userHistory = {};
 const userOrder = {};
+const userBrowse = {};
 const MAX_HISTORY = 6;
 const pendingConfirmations = {};
 let pendingCounter = 0;
 
 const ORDER_STEPS = {
   ro: [
-    null, // 0: foto
-    null, // 1: marime (butoane)
+    null,
+    null,
     'Care este numele si prenumele tau? (ex: Ion Popescu)',
     'Care este numarul tau de telefon? (ex: 069123456)',
     'Care este adresa de livrare? (oras/sat, strada, nr.)',
@@ -176,17 +245,6 @@ function validateAdresa(text) {
 
 function validateCodPostal(text) {
   return /^\d{4}$/.test(text.trim());
-}
-
-async function verifyCodPostal(adresa, cod) {
-  try {
-    const res = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 50,
-      messages: [{ role: 'user', content: `In Republica Moldova, codul postal "${cod}" corespunde localitatii/adresei "${adresa}"? Raspunde DOAR cu CORECT sau INCORECT.` }],
-    });
-    return res.content[0].text.trim().toUpperCase().startsWith('CORECT');
-  } catch { return true; }
 }
 
 function downloadBuffer(url) {
@@ -262,9 +320,12 @@ function mainMenu(lang) {
       keyboard: [
         [
           { text: lang === 'ru' ? '🛍 Как заказать' : '🛍 Cum sa comand' },
-          { text: lang === 'ru' ? '❓ Задать вопрос' : '❓ Intreaba Didi' },
+          { text: lang === 'ru' ? '🔍 Наличие' : '🔍 Verifica stoc' },
         ],
-        [{ text: lang === 'ru' ? '📞 Contactati-ne' : '📞 Contactati-ne' }],
+        [
+          { text: lang === 'ru' ? '❓ Задать вопрос' : '❓ Intreaba Didi' },
+          { text: '📞 Contactati-ne' },
+        ],
       ],
       resize_keyboard: true,
     },
@@ -318,6 +379,17 @@ function isGroup(msg) {
   return msg.chat.type === 'group' || msg.chat.type === 'supergroup';
 }
 
+// ─── Canal listener: indexeaza automat pozele din @didikidsmd ──────────────────
+bot.on('channel_post', async (msg) => {
+  if (!msg.photo || !msg.caption) return;
+  const match = msg.caption.match(/CH\d{3}/i);
+  if (!match) return;
+  const cod = match[0].toUpperCase();
+  const fileId = msg.photo[msg.photo.length - 1].file_id;
+  await saveToCatalog(cod, fileId, msg.caption);
+});
+// ───────────────────────────────────────────────────────────────────────────────
+
 bot.on('message', async (msg) => {
   const chatId = msg.chat.id;
   const text = msg.text || '';
@@ -338,6 +410,8 @@ bot.on('message', async (msg) => {
 
   if (cleanText === '/start' || text === '/start') {
     userHistory[chatId] = [];
+    delete userOrder[chatId];
+    delete userBrowse[chatId];
     return bot.sendMessage(chatId, welcomeText(lang), mainMenu(lang));
   }
 
@@ -357,39 +431,54 @@ bot.on('message', async (msg) => {
         ...(botUser ? { reply_markup: { inline_keyboard: [[{ text: '💬 Deschide chat privat', url: `https://t.me/${botUser}?start=start` }]] } } : {}),
       };
       return bot.sendMessage(chatId,
-        lang === 'ru'
-          ? `🛍 Comenzile se plaseaza in mesaj privat${botUser ? ` cu @${botUser}` : '.'}`
-          : `🛍 Comenzile se plaseaza in mesaj privat${botUser ? ` cu @${botUser}` : '.'}`,
+        `🛍 Comenzile se plaseaza in mesaj privat${botUser ? ` cu @${botUser}` : '.'}`,
         opts);
     }
+    delete userBrowse[chatId];
     userOrder[chatId] = { step: 0, data: {} };
     return bot.sendMessage(chatId,
+      '🛍 Incepem inregistrarea comenzii!\n\nTrimite poza produsului dorit cu codul produsului (ex: CH005) in descriere.',
+      { reply_markup: { keyboard: [[{ text: lang === 'ru' ? '❌ Отмена' : '❌ Anuleaza' }]], resize_keyboard: true } });
+  }
+
+  if (['🔍 Verifica stoc', '🔍 Наличие'].includes(cleanText)) {
+    if (isGroup(msg)) {
+      const botUser = process.env.BOT_USERNAME || '';
+      const opts = {
+        reply_to_message_id: msg.message_id,
+        ...(botUser ? { reply_markup: { inline_keyboard: [[{ text: '💬 Deschide chat privat', url: `https://t.me/${botUser}?start=start` }]] } } : {}),
+      };
+      return bot.sendMessage(chatId,
+        `🔍 Verificarea stocului se face in mesaj privat${botUser ? ` cu @${botUser}` : '.'}`,
+        opts);
+    }
+    delete userOrder[chatId];
+    userBrowse[chatId] = { step: 0, data: {} };
+    return bot.sendMessage(chatId,
       lang === 'ru'
-        ? '🛍 Incepem inregistrarea comenzii!\n\nTrimite poza produsului dorit cu codul produsului (ex: CH005) in descriere.'
-        : '🛍 Incepem inregistrarea comenzii!\n\nTrimite poza produsului dorit cu codul produsului (ex: CH005) in descriere.',
+        ? '🔍 Trimite poza produsului cu codul (ex: CH005) si verificam marimile disponibile!'
+        : '🔍 Trimite poza produsului cu codul (ex: CH005) si verificam marimile disponibile!',
       { reply_markup: { keyboard: [[{ text: lang === 'ru' ? '❌ Отмена' : '❌ Anuleaza' }]], resize_keyboard: true } });
   }
 
   if (['❌ Anuleaza', '❌ Отмена'].includes(cleanText)) {
     delete userOrder[chatId];
-    return bot.sendMessage(chatId, lang === 'ru' ? 'Comanda anulata.' : 'Comanda anulata.', mainMenu(lang));
+    delete userBrowse[chatId];
+    return bot.sendMessage(chatId, 'Comanda anulata.', mainMenu(lang));
   }
 
+  // ─── Fluxul de comanda ────────────────────────────────────────────────────────
   if (userOrder[chatId] !== undefined) {
     const order = userOrder[chatId];
     const cancelKb = { reply_markup: { keyboard: [[{ text: lang === 'ru' ? '❌ Отмена' : '❌ Anuleaza' }]], resize_keyboard: true } };
 
-    // Pasul 0: foto + detectie cod produs
     if (order.step === 0) {
-      // Sub-pas: asteapta codul dupa ce poza a fost trimisa fara cod in caption
       if (order.waiting_code) {
         const inputText = (msg.text || msg.caption || '').trim();
         const rawMatch = inputText.match(/CH[\s\-]?\d{3}/i);
         if (!rawMatch) {
           return bot.sendMessage(chatId,
-            lang === 'ru'
-              ? 'Scrie codul produsului din canalul @didikidsmd (ex: CH005):'
-              : 'Scrie codul produsului din canalul @didikidsmd (ex: CH005):',
+            'Scrie codul produsului din canalul @didikidsmd (ex: CH005):',
             cancelKb);
         }
         order.data.cod_produs = rawMatch[0].replace(/[\s\-]/g, '').toUpperCase();
@@ -398,12 +487,9 @@ bot.on('message', async (msg) => {
       } else {
         if (!msg.photo) {
           return bot.sendMessage(chatId,
-            lang === 'ru'
-              ? 'Trimite poza produsului dorit cu codul produsului (ex: CH005) in descriere.'
-              : 'Trimite poza produsului dorit cu codul produsului (ex: CH005) in descriere.',
+            'Trimite poza produsului dorit cu codul produsului (ex: CH005) in descriere.',
             cancelKb);
         }
-
         const caption = msg.caption || '';
         console.log('Step0 caption:', JSON.stringify(caption));
         order.data.photo_id = msg.photo[msg.photo.length - 1].file_id;
@@ -419,9 +505,7 @@ bot.on('message', async (msg) => {
           } else {
             order.waiting_code = true;
             return bot.sendMessage(chatId,
-              lang === 'ru'
-                ? '📦 Poza primita!\n\nAcum scrie codul produsului din canalul @didikidsmd (ex: CH005):'
-                : '📦 Poza primita!\n\nAcum scrie codul produsului din canalul @didikidsmd (ex: CH005):',
+              '📦 Poza primita!\n\nAcum scrie codul produsului din canalul @didikidsmd (ex: CH005):',
               cancelKb);
           }
         } else {
@@ -438,17 +522,13 @@ bot.on('message', async (msg) => {
         if (marimi.length === 0) {
           delete userOrder[chatId];
           return bot.sendMessage(chatId,
-            lang === 'ru'
-              ? `Ne pare rau, produsul *${codProdus}* nu este disponibil momentan. Revino curand!`
-              : `Ne pare rau, produsul *${codProdus}* nu este disponibil momentan. Revino curand!`,
+            `Ne pare rau, produsul *${codProdus}* nu este disponibil momentan. Revino curand!`,
             { ...mainMenu(lang), parse_mode: 'Markdown' });
         }
         order.data.marimi_disponibile = marimi;
         order.step = 1;
         return bot.sendMessage(chatId,
-          lang === 'ru'
-            ? `✅ Produs: *${codProdus}*\n\nAlege marimea dorita (marimile disponibile in stoc):`
-            : `✅ Produs: *${codProdus}*\n\nAlege marimea dorita (marimile disponibile in stoc):`,
+          `✅ Produs: *${codProdus}*\n\nAlege marimea dorita (marimile disponibile in stoc):`,
           { ...sizeMenu(marimi, lang), parse_mode: 'Markdown' });
       } catch (e) {
         console.error('Sheets getStoc err:', e.message);
@@ -457,7 +537,6 @@ bot.on('message', async (msg) => {
       }
     }
 
-    // Pasul 1: selectia marimii din butoane
     if (order.step === 1) {
       const raw = (cleanText || text).trim().replace('📏 ', '');
       const value = raw.split(' — ')[0].replace(' cm', '').trim();
@@ -466,18 +545,17 @@ bot.on('message', async (msg) => {
 
       if (!selected) {
         return bot.sendMessage(chatId,
-          lang === 'ru' ? 'Alege una din marimile disponibile:' : 'Alege una din marimile disponibile:',
+          'Alege una din marimile disponibile:',
           sizeMenu(marimi, lang));
       }
 
       order.data.marime = value;
       order.data.pret = selected.pret;
-      order.data.stoc_full = selected.fullDesc; // denumirea completa din Stoc pentru col F
+      order.data.stoc_full = selected.fullDesc;
       order.step = 2;
       return bot.sendMessage(chatId, ORDER_STEPS[lang][2], cancelKb);
     }
 
-    // Pasii 2-5: colecteaza datele personale
     if (order.step >= 2 && order.step <= 5) {
       const value = (cleanText || text).trim();
 
@@ -503,7 +581,6 @@ bot.on('message', async (msg) => {
       return bot.sendMessage(chatId, ORDER_STEPS[lang][order.step], cancelKb);
     }
 
-    // Pasul 6: livrare + finalizare comanda
     if (order.step === 6) {
       const value = (cleanText || text).trim();
       if (!['📮 Prin posta', '🏃 Prin curier'].includes(value)) {
@@ -515,7 +592,6 @@ bot.on('message', async (msg) => {
       const notify = `🛒 COMANDA NOUA!\n\n📦 Produs: ${d.cod_produs}\n📏 Marime: ${d.marime} cm\n💰 Pret: ${d.pret} lei\n👤 Nume: ${d.nume}\n📞 Telefon: ${d.telefon}\n📍 Adresa: ${d.adresa}\n📮 Cod postal: ${d.cod_postal}\n🚚 Livrare: ${d.livrare}`;
       console.log('Comanda noua:', notify);
 
-      // Notificare owner cu butoane confirmare
       const ownerId = process.env.OWNER_CHAT_ID;
       if (ownerId) {
         const pendingKey = String(++pendingCounter);
@@ -535,7 +611,6 @@ bot.on('message', async (msg) => {
         send.catch(e => console.error('notify err:', e.message));
       }
 
-      // Scrie in Google Sheets
       if (SHEET_ID) {
         addComanda(d)
           .then(() => console.log('✅ Comanda salvata in Sheets'))
@@ -546,9 +621,120 @@ bot.on('message', async (msg) => {
 
       delete userOrder[chatId];
       return bot.sendMessage(chatId,
-        lang === 'ru'
-          ? '✅ Comanda inregistrata! Te vom contacta in scurt timp pentru confirmare.'
-          : '✅ Comanda inregistrata! Te vom contacta in scurt timp pentru confirmare.',
+        '✅ Comanda inregistrata! Te vom contacta in scurt timp pentru confirmare.',
+        mainMenu(lang));
+    }
+  }
+
+  // ─── Fluxul de verificare stoc ────────────────────────────────────────────────
+  if (userBrowse[chatId] !== undefined) {
+    const browse = userBrowse[chatId];
+    const cancelKb = { reply_markup: { keyboard: [[{ text: lang === 'ru' ? '❌ Отмена' : '❌ Anuleaza' }]], resize_keyboard: true } };
+
+    // Pasul 0: foto + detectie cod
+    if (browse.step === 0) {
+      if (browse.waiting_code) {
+        const inputText = (msg.text || msg.caption || '').trim();
+        const rawMatch = inputText.match(/CH[\s\-]?\d{3}/i);
+        if (!rawMatch) {
+          return bot.sendMessage(chatId,
+            'Scrie codul produsului din canalul @didikidsmd (ex: CH005):',
+            cancelKb);
+        }
+        browse.data.cod_produs = rawMatch[0].replace(/[\s\-]/g, '').toUpperCase();
+        delete browse.waiting_code;
+      } else {
+        if (!msg.photo) {
+          return bot.sendMessage(chatId,
+            'Trimite poza produsului cu codul (ex: CH005) si verificam marimile disponibile!',
+            cancelKb);
+        }
+        const caption = msg.caption || '';
+        browse.data.photo_id = msg.photo[msg.photo.length - 1].file_id;
+        const rawMatch = caption.match(/CH[\s\-]?\d{3}/i);
+
+        if (!rawMatch) {
+          await bot.sendChatAction(chatId, 'typing');
+          const visionCode = await extractCodeFromImage(browse.data.photo_id);
+          if (visionCode) {
+            browse.data.cod_produs = visionCode;
+          } else {
+            browse.waiting_code = true;
+            return bot.sendMessage(chatId,
+              '📦 Poza primita!\n\nAcum scrie codul produsului din canalul @didikidsmd (ex: CH005):',
+              cancelKb);
+          }
+        } else {
+          browse.data.cod_produs = rawMatch[0].replace(/[\s\-]/g, '').toUpperCase();
+        }
+      }
+
+      const codProdus = browse.data.cod_produs;
+      await bot.sendChatAction(chatId, 'typing');
+
+      try {
+        const marimi = await getStocForProduct(codProdus);
+        if (marimi.length === 0) {
+          delete userBrowse[chatId];
+          return bot.sendMessage(chatId,
+            `Ne pare rau, produsul *${codProdus}* nu este disponibil momentan.\n\nRevino curand sau contacteaza-ne!`,
+            { ...mainMenu(lang), parse_mode: 'Markdown' });
+        }
+
+        browse.data.marimi_disponibile = marimi;
+        browse.step = 1;
+
+        const marimiText = marimi.map(m => `📏 ${m.marime} cm — ${m.pret} lei`).join('\n');
+        return bot.sendMessage(chatId,
+          `✅ *${codProdus}* — mărimi disponibile în stoc:\n\n${marimiText}\n\nCe mărime aveți nevoie?`,
+          { ...cancelKb, parse_mode: 'Markdown' });
+      } catch (e) {
+        console.error('Browse getStoc err:', e.message);
+        delete userBrowse[chatId];
+        return bot.sendMessage(chatId, 'A aparut o eroare. Incearca din nou.', mainMenu(lang));
+      }
+    }
+
+    // Pasul 1: marimea dorita de client
+    if (browse.step === 1) {
+      const sizeInput = (cleanText || text).trim().replace(/\s*cm\s*$/i, '').trim();
+      const marimi = browse.data.marimi_disponibile || [];
+      const available = marimi.find(m => m.marime === sizeInput);
+
+      if (available) {
+        delete userBrowse[chatId];
+        return bot.sendMessage(chatId,
+          `✅ *${browse.data.cod_produs}* — mărimea *${sizeInput} cm* este disponibilă!\n💰 Preț: ${available.pret} lei\n\nApasă 🛍 Cum sa comand pentru a plasa comanda 👇`,
+          { ...mainMenu(lang), parse_mode: 'Markdown' });
+      }
+
+      // Marimea nu e disponibila — cautam alternative
+      await bot.sendChatAction(chatId, 'typing');
+      const alternatives = await getAlternativesBySize(sizeInput, browse.data.cod_produs);
+      delete userBrowse[chatId];
+
+      if (alternatives.length === 0) {
+        return bot.sendMessage(chatId,
+          `Ne pare rău, momentan nu avem modele disponibile la mărimea *${sizeInput} cm*.\n\nRevino curând sau contactează-ne!`,
+          { ...mainMenu(lang), parse_mode: 'Markdown' });
+      }
+
+      await bot.sendMessage(chatId,
+        `Mărimea *${sizeInput} cm* nu este disponibilă la *${browse.data.cod_produs}*.\n\nIată ${alternatives.length === 1 ? 'o variantă disponibilă' : `${alternatives.length} variante disponibile`} la *${sizeInput} cm* 👇`,
+        { parse_mode: 'Markdown' });
+
+      for (const alt of alternatives) {
+        const fileId = await getCatalogFileId(alt.cod);
+        const caption = `📦 *${alt.cod}*\n${alt.descriere}\n💰 ${alt.pret} lei`;
+        if (fileId) {
+          await bot.sendPhoto(chatId, fileId, { caption, parse_mode: 'Markdown' });
+        } else {
+          await bot.sendMessage(chatId, caption, { parse_mode: 'Markdown' });
+        }
+      }
+
+      return bot.sendMessage(chatId,
+        'Doriți să comandați? Apăsați 🛍 Cum sa comand 👇',
         mainMenu(lang));
     }
   }
@@ -562,7 +748,6 @@ bot.on('message', async (msg) => {
   userLang[chatId] = detectLang(cleanText || text);
   const updatedLang = getLang(chatId);
 
-  // Detectie intentie comandă — redirectionare directa fara AI
   const msgLower = (cleanText || text).toLowerCase();
   const orderIntent = [
     'vreau sa comand', 'vreau să comand', 'cum comand', 'cum se comanda',
@@ -571,9 +756,7 @@ bot.on('message', async (msg) => {
   ].some(k => msgLower.includes(k));
   if (orderIntent) {
     return bot.sendMessage(chatId,
-      updatedLang === 'ru'
-        ? '🛍 Pentru a plasa o comandă, apasă butonul de mai jos 👇'
-        : '🛍 Pentru a plasa o comandă, apasă butonul de mai jos 👇',
+      '🛍 Pentru a plasa o comandă, apasă butonul de mai jos 👇',
       { reply_markup: { keyboard: [[{ text: updatedLang === 'ru' ? '🛍 Как заказать' : '🛍 Cum sa comand' }]], resize_keyboard: true } });
   }
 
@@ -617,7 +800,6 @@ bot.on('callback_query', async (query) => {
   const { clientChatId, clientLang: cLang, orderData: d } = pending;
   delete pendingConfirmations[key];
 
-  // Sterge butoanele din mesajul owner
   bot.editMessageReplyMarkup({ inline_keyboard: [] }, {
     chat_id: query.message.chat.id,
     message_id: query.message.message_id,
@@ -656,4 +838,4 @@ bot.on('polling_error', (error) => {
   if ((error.message || '').includes('409')) process.exit(1);
 });
 
-console.log('Didi Kids Bot pornit... v18');
+console.log('Didi Kids Bot pornit... v19');
