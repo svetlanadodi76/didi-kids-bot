@@ -382,9 +382,10 @@ function isGroup(msg) {
 // ─── Canal listener: indexeaza automat pozele din @didikidsmd ──────────────────
 bot.on('channel_post', async (msg) => {
   if (!msg.photo || !msg.caption) return;
-  const match = msg.caption.match(/CH\d{3}/i);
+  // Accepta orice cod de forma XX000 sau XXX000 (ex: CH005, TR010, LV003)
+  const match = msg.caption.match(/\b([A-Z]{2,3}\d{2,4})\b/i);
   if (!match) return;
-  const cod = match[0].toUpperCase();
+  const cod = match[1].toUpperCase();
   const fileId = msg.photo[msg.photo.length - 1].file_id;
   await saveToCatalog(cod, fileId, msg.caption);
 });
