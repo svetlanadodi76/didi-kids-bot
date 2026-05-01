@@ -545,9 +545,33 @@ bot.on('message', async (msg) => {
       const selected = marimi.find(m => m.marime === value);
 
       if (!selected) {
+        // Daca clientul a scris o marime numerica care nu e disponibila — cauta alternative
+        const sizeAttempt = value.replace(/\s*cm\s*$/i, '').trim();
+        if (/^\d{2,3}$/.test(sizeAttempt)) {
+          await bot.sendChatAction(chatId, 'typing');
+          const alternatives = await getAlternativesBySize(sizeAttempt, order.data.cod_produs);
+          if (alternatives.length > 0) {
+            await bot.sendMessage(chatId,
+              `Mărimea *${sizeAttempt} cm* nu este disponibilă la *${order.data.cod_produs}*.\n\nIată ${alternatives.length === 1 ? 'o variantă disponibilă' : `${alternatives.length} variante disponibile`} la *${sizeAttempt} cm* 👇`,
+              { parse_mode: 'Markdown' });
+            for (const alt of alternatives) {
+              const fileId = await getCatalogFileId(alt.cod);
+              const caption = `📦 *${alt.cod}*\n${alt.descriere}\n💰 ${alt.pret} lei`;
+              if (fileId) {
+                await bot.sendPhoto(chatId, fileId, { caption, parse_mode: 'Markdown' });
+              } else {
+                await bot.sendMessage(chatId, caption, { parse_mode: 'Markdown' });
+              }
+            }
+          } else {
+            await bot.sendMessage(chatId,
+              `Mărimea *${sizeAttempt} cm* nu este disponibilă momentan la niciun model.`,
+              { parse_mode: 'Markdown' });
+          }
+        }
         return bot.sendMessage(chatId,
-          'Alege una din marimile disponibile:',
-          sizeMenu(marimi, lang));
+          `Alege una din mărimile disponibile la *${order.data.cod_produs}*:`,
+          { ...sizeMenu(marimi, lang), parse_mode: 'Markdown' });
       }
 
       order.data.marime = value;
@@ -839,4 +863,4 @@ bot.on('polling_error', (error) => {
   if ((error.message || '').includes('409')) process.exit(1);
 });
 
-console.log('Didi Kids Bot pornit... v19');
+console.log('Didi Kids Bot pornit... v20');
