@@ -385,7 +385,7 @@ function systemPrompt(lang) {
 
 ПРАВИЛА:
 1. Если клиент ищет одежду — задай максимум 2 вопроса: для кого (девочка/мальчик) и размер в см. Если уже знаешь тип одежды (платье, костюм, спорт) — не спрашивай повторно.
-2. Когда знаешь ТИП одежды И размер — добавь в КОНЕЦ ответа маркер: [SEARCH:keyword:size] где keyword = rochie/costum/sport (только эти три), size = размер в цифрах. Пример: [SEARCH:costum:110]. НЕ упоминай этот маркер клиенту.
+2. Добавь маркер [SEARCH:keyword:size] ТОЛЬКО когда клиент ЯВНО ответил с типом одежды (написал "rochie/rochita", "costum" или "sport") И ты знаешь размер в см. keyword должен быть ТОЧНО одним из: rochie, costum, sport. size = размер цифрами. Пример: [SEARCH:costum:110]. НЕ добавляй маркер если ещё ждёшь ответа клиента. НЕ упоминай этот маркер клиенту.
 3. Если клиент хочет заказать — скажи ТОЛЬКО: "Нажми 🛍 Как заказать в меню."
 4. НЕ упоминай другие магазины или бренды.
 5. Давай советы ТОЛЬКО по уходу за одеждой (стирка, глажка).
@@ -402,7 +402,7 @@ INFORMATII MAGAZIN:
 
 REGULI:
 1. Daca clientul cauta haine — pune maxim 2 intrebari: pentru cine (fetita/baiat) si marimea in cm. Daca stii deja tipul hainei (rochie, costum, sport) — nu mai intreba.
-2. Cand stii TIPUL hainei SI marimea — adauga la SFARSITUL raspunsului un marker: [SEARCH:keyword:size] unde keyword = rochie/costum/sport (doar acestea trei), size = marimea in cifre. Exemplu: [SEARCH:rochie:110]. NU mentiona acest marker clientului.
+2. Adauga marker [SEARCH:keyword:size] DOAR cand clientul a raspuns EXPLICIT cu tipul hainei (a scris "rochie/rochita", "costum", sau "sport") SI stii marimea in cm. keyword trebuie sa fie EXACT unul din: rochie, costum, sport. size = marimea in cifre. Exemplu: [SEARCH:rochie:110]. NU adauga marker daca inca astepti raspunsul clientului. NU mentiona acest marker clientului.
 3. Daca clientul vrea sa comande — spune DOAR: "Apasa 🛍 Cum sa comand din meniu."
 4. NU vorbi despre alte magazine sau produse.
 5. Da sfaturi DOAR despre intretinerea hainelor (spalare, calcare).
@@ -850,7 +850,9 @@ bot.on('message', async (msg) => {
     await bot.sendMessage(chatId, reply, { reply_markup: mainMenu(updatedLang).reply_markup });
 
     // Daca AI a detectat categoria + marimea — cauta in Stoc real si trimite pozele
-    if (searchMatch) {
+    // Acceptam doar keyworduri valide din descrierile Stoc
+    const validKeywords = ['rochie', 'costum', 'sport'];
+    if (searchMatch && validKeywords.includes(searchMatch[1].toLowerCase())) {
       const keyword = searchMatch[1];
       const marime = searchMatch[2];
       await bot.sendChatAction(chatId, 'typing');
@@ -938,4 +940,4 @@ bot.on('polling_error', (error) => {
   if ((error.message || '').includes('409')) process.exit(1);
 });
 
-console.log('Didi Kids Bot pornit... v22');
+console.log('Didi Kids Bot pornit... v23');
