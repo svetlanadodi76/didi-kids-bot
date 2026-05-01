@@ -47,7 +47,7 @@ async function getStocForProduct(codProdus) {
   return result;
 }
 
-async function getProductsByCategory(keyword, marime) {
+async function getProductsByCategory(keyword, marime, gen) {
   try {
     const sheets = getSheetsClient();
     const res = await sheets.spreadsheets.values.get({
@@ -70,6 +70,9 @@ async function getProductsByCategory(keyword, marime) {
       const rowMarime = parts[parts.length - 1].trim();
       if (rowMarime !== String(marime)) continue;
       if (!desc.includes(keyword.toLowerCase())) continue;
+      // Filtreaza dupa gen
+      if (gen === 'fete' && (desc.includes('baet') || desc.includes('baieti'))) continue;
+      if (gen === 'baieti' && (desc.includes('fete') || desc.includes('fetit'))) continue;
       seenCods.add(cod);
       const pret = Math.round(parseFloat(row[7]) || 0);
       found.push({ cod, descriere: String(row[1] || ''), pret });
@@ -386,7 +389,7 @@ function systemPrompt(lang) {
 ПРАВИЛА:
 1. Если клиент ищет одежду — задай максимум 2 вопроса: для кого (девочка/мальчик) и размер в см. Если уже знаешь тип одежды — не спрашивай повторно.
 2. При вопросе о типе одежды — учитывай пол: для ДЕВОЧЕК спрашивай "rochie, costum или sport?", для МАЛЬЧИКОВ спрашивай "costum или sport?" (НЕ предлагай rochie для мальчиков).
-3. Добавь маркер [SEARCH:keyword:size] ТОЛЬКО когда клиент ЯВНО ответил с типом одежды И ты знаешь размер в см. keyword должен быть ТОЧНО одним из: rochie, costum, sport. size = размер цифрами. Пример: [SEARCH:costum:100]. НЕ добавляй маркер если ещё ждёшь ответа клиента. НЕ упоминай этот маркер клиенту.
+3. Добавь маркер [SEARCH:keyword:size:gen] ТОЛЬКО когда клиент ЯВНО ответил с типом одежды И ты знаешь размер в см. keyword = ТОЧНО один из: rochie, costum, sport. size = размер цифрами. gen = fete или baieti. Пример: [SEARCH:costum:100:fete] или [SEARCH:costum:100:baieti]. НЕ добавляй маркер если ещё ждёшь ответа клиента. НЕ упоминай этот маркер клиенту.
 3. Если клиент хочет заказать — скажи ТОЛЬКО: "Нажми 🛍 Как заказать в меню."
 4. НЕ упоминай другие магазины или бренды.
 5. Давай советы ТОЛЬКО по уходу за одеждой (стирка, глажка).
@@ -404,7 +407,7 @@ INFORMATII MAGAZIN:
 REGULI:
 1. Daca clientul cauta haine — pune maxim 2 intrebari: pentru cine (fetita/baiat) si marimea in cm. Daca stii deja tipul hainei — nu mai intreba.
 2. Cand intrebi tipul hainei — adapteaza la gen: pentru FETITE intreaba "rochie, costum sau sport?", pentru BAIETI intreaba "costum sau sport?" (NU propune rochie la baieti).
-3. Adauga marker [SEARCH:keyword:size] DOAR cand clientul a raspuns EXPLICIT cu tipul hainei SI stii marimea in cm. keyword trebuie sa fie EXACT unul din: rochie, costum, sport. size = marimea in cifre. Exemplu: [SEARCH:costum:100]. NU adauga marker daca inca astepti raspunsul clientului. NU mentiona acest marker clientului.
+3. Adauga marker [SEARCH:keyword:size:gen] DOAR cand clientul a raspuns EXPLICIT cu tipul hainei SI stii marimea in cm. keyword = EXACT unul din: rochie, costum, sport. size = marimea in cifre. gen = fete sau baieti. Exemplu: [SEARCH:costum:100:fete] sau [SEARCH:costum:100:baieti]. NU adauga marker daca inca astepti raspunsul clientului. NU mentiona acest marker clientului.
 3. Daca clientul vrea sa comande — spune DOAR: "Apasa 🛍 Cum sa comand din meniu."
 4. NU vorbi despre alte magazine sau produse.
 5. Da sfaturi DOAR despre intretinerea hainelor (spalare, calcare).
@@ -840,8 +843,8 @@ bot.on('message', async (msg) => {
     });
     const rawReply = response.content[0].text;
 
-    // Detecteaza marker [SEARCH:keyword:size] lasat de AI cand cunoaste categoria + marimea
-    const searchMatch = rawReply.match(/\[SEARCH:(\w+):(\d+)\]/);
+    // Detecteaza marker [SEARCH:keyword:size:gen] lasat de AI cand cunoaste categoria + marimea + genul
+    const searchMatch = rawReply.match(/\[SEARCH:(\w+):(\d+):?(\w+)?\]/);
     const reply = rawReply.replace(/\[SEARCH:[^\]]+\]/g, '').trim();
 
     userHistory[chatId].push({ role: 'assistant', content: reply });
@@ -851,14 +854,15 @@ bot.on('message', async (msg) => {
 
     await bot.sendMessage(chatId, reply, { reply_markup: mainMenu(updatedLang).reply_markup });
 
-    // Daca AI a detectat categoria + marimea — cauta in Stoc real si trimite pozele
+    // Daca AI a detectat categoria + marimea + genul — cauta in Stoc real si trimite pozele
     // Acceptam doar keyworduri valide din descrierile Stoc
     const validKeywords = ['rochie', 'costum', 'sport'];
     if (searchMatch && validKeywords.includes(searchMatch[1].toLowerCase())) {
       const keyword = searchMatch[1];
       const marime = searchMatch[2];
+      const gen = searchMatch[3] || null; // fete sau baieti
       await bot.sendChatAction(chatId, 'typing');
-      const products = await getProductsByCategory(keyword, marime);
+      const products = await getProductsByCategory(keyword, marime, gen);
 
       if (products.length > 0) {
         await bot.sendMessage(chatId,
@@ -942,4 +946,4 @@ bot.on('polling_error', (error) => {
   if ((error.message || '').includes('409')) process.exit(1);
 });
 
-console.log('Didi Kids Bot pornit... v24');
+console.log('Didi Kids Bot pornit... v25');
