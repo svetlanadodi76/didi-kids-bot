@@ -384,8 +384,9 @@ function systemPrompt(lang) {
 - Каталог с фото: канал @didikidsmd
 
 ПРАВИЛА:
-1. Если клиент ищет одежду — задай максимум 2 вопроса: для кого (девочка/мальчик) и размер в см. Если уже знаешь тип одежды (платье, костюм, спорт) — не спрашивай повторно.
-2. Добавь маркер [SEARCH:keyword:size] ТОЛЬКО когда клиент ЯВНО ответил с типом одежды (написал "rochie/rochita", "costum" или "sport") И ты знаешь размер в см. keyword должен быть ТОЧНО одним из: rochie, costum, sport. size = размер цифрами. Пример: [SEARCH:costum:110]. НЕ добавляй маркер если ещё ждёшь ответа клиента. НЕ упоминай этот маркер клиенту.
+1. Если клиент ищет одежду — задай максимум 2 вопроса: для кого (девочка/мальчик) и размер в см. Если уже знаешь тип одежды — не спрашивай повторно.
+2. При вопросе о типе одежды — учитывай пол: для ДЕВОЧЕК спрашивай "rochie, costum или sport?", для МАЛЬЧИКОВ спрашивай "costum или sport?" (НЕ предлагай rochie для мальчиков).
+3. Добавь маркер [SEARCH:keyword:size] ТОЛЬКО когда клиент ЯВНО ответил с типом одежды И ты знаешь размер в см. keyword должен быть ТОЧНО одним из: rochie, costum, sport. size = размер цифрами. Пример: [SEARCH:costum:100]. НЕ добавляй маркер если ещё ждёшь ответа клиента. НЕ упоминай этот маркер клиенту.
 3. Если клиент хочет заказать — скажи ТОЛЬКО: "Нажми 🛍 Как заказать в меню."
 4. НЕ упоминай другие магазины или бренды.
 5. Давай советы ТОЛЬКО по уходу за одеждой (стирка, глажка).
@@ -401,8 +402,9 @@ INFORMATII MAGAZIN:
 - Catalog cu poze: canalul @didikidsmd
 
 REGULI:
-1. Daca clientul cauta haine — pune maxim 2 intrebari: pentru cine (fetita/baiat) si marimea in cm. Daca stii deja tipul hainei (rochie, costum, sport) — nu mai intreba.
-2. Adauga marker [SEARCH:keyword:size] DOAR cand clientul a raspuns EXPLICIT cu tipul hainei (a scris "rochie/rochita", "costum", sau "sport") SI stii marimea in cm. keyword trebuie sa fie EXACT unul din: rochie, costum, sport. size = marimea in cifre. Exemplu: [SEARCH:rochie:110]. NU adauga marker daca inca astepti raspunsul clientului. NU mentiona acest marker clientului.
+1. Daca clientul cauta haine — pune maxim 2 intrebari: pentru cine (fetita/baiat) si marimea in cm. Daca stii deja tipul hainei — nu mai intreba.
+2. Cand intrebi tipul hainei — adapteaza la gen: pentru FETITE intreaba "rochie, costum sau sport?", pentru BAIETI intreaba "costum sau sport?" (NU propune rochie la baieti).
+3. Adauga marker [SEARCH:keyword:size] DOAR cand clientul a raspuns EXPLICIT cu tipul hainei SI stii marimea in cm. keyword trebuie sa fie EXACT unul din: rochie, costum, sport. size = marimea in cifre. Exemplu: [SEARCH:costum:100]. NU adauga marker daca inca astepti raspunsul clientului. NU mentiona acest marker clientului.
 3. Daca clientul vrea sa comande — spune DOAR: "Apasa 🛍 Cum sa comand din meniu."
 4. NU vorbi despre alte magazine sau produse.
 5. Da sfaturi DOAR despre intretinerea hainelor (spalare, calcare).
@@ -940,4 +942,4 @@ bot.on('polling_error', (error) => {
   if ((error.message || '').includes('409')) process.exit(1);
 });
 
-console.log('Didi Kids Bot pornit... v23');
+console.log('Didi Kids Bot pornit... v24');
