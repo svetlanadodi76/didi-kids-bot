@@ -47,6 +47,41 @@ async function getStocForProduct(codProdus) {
   return result;
 }
 
+async function getProductsByCategory(keyword, marime) {
+  try {
+    const sheets = getSheetsClient();
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: 'Stoc!A:I',
+      valueRenderOption: 'UNFORMATTED_VALUE',
+    });
+    const rows = res.data.values || [];
+    const found = [];
+    const seenCods = new Set();
+
+    for (const row of rows) {
+      const cod = String(row[0] || '').toUpperCase();
+      if (!cod.match(/^[A-Z]{2,3}\d{2,4}$/)) continue;
+      if (seenCods.has(cod)) continue;
+      const stoc = parseFloat(row[6]) || 0;
+      if (stoc <= 0) continue;
+      const desc = String(row[1] || '').toLowerCase();
+      const parts = desc.split(' - ');
+      const rowMarime = parts[parts.length - 1].trim();
+      if (rowMarime !== String(marime)) continue;
+      if (!desc.includes(keyword.toLowerCase())) continue;
+      seenCods.add(cod);
+      const pret = Math.round(parseFloat(row[7]) || 0);
+      found.push({ cod, descriere: String(row[1] || ''), pret });
+      if (found.length >= 3) break;
+    }
+    return found;
+  } catch (e) {
+    console.error('getProductsByCategory err:', e.message);
+    return [];
+  }
+}
+
 async function getAlternativesBySize(marime, excludeCod) {
   try {
     const sheets = getSheetsClient();
@@ -349,14 +384,14 @@ function systemPrompt(lang) {
 - Каталог с фото: канал @didikidsmd
 
 ПРАВИЛА:
-1. НЕ рекомендуй конкретные продукты, модели или размеры — ты не знаешь актуальный остаток на складе.
-2. Если клиент спрашивает какие товары есть, что рекомендуешь, какие размеры — скажи ТОЛЬКО: "Нажми 🔍 Наличие в меню — покажу что есть в наличии прямо сейчас."
-3. Если клиент хочет заказать или купить — скажи ТОЛЬКО: "Нажми кнопку 🛍 Как заказать в меню, чтобы оформить заказ."
+1. Если клиент ищет одежду — задай максимум 2 вопроса: для кого (девочка/мальчик) и размер в см. Если уже знаешь тип одежды (платье, костюм, спорт) — не спрашивай повторно.
+2. Когда знаешь ТИП одежды И размер — добавь в КОНЕЦ ответа маркер: [SEARCH:keyword:size] где keyword = rochie/costum/sport (только эти три), size = размер в цифрах. Пример: [SEARCH:costum:110]. НЕ упоминай этот маркер клиенту.
+3. Если клиент хочет заказать — скажи ТОЛЬКО: "Нажми 🛍 Как заказать в меню."
 4. НЕ упоминай другие магазины или бренды.
-5. Давай советы ТОЛЬКО по уходу за одеждой (стирка, глажка) по типу ткани.
+5. Давай советы ТОЛЬКО по уходу за одеждой (стирка, глажка).
 6. Отвечай КОРОТКО: максимум 2-3 предложения.
-7. Если не знаешь ответа, скажи: "Не имею этой информации. Нажми 📞 Contactati-ne для связи с нами."
-8. Оставайся на теме детской одежды — если спрашивают о другом, вежливо перенаправь.
+7. Если не знаешь ответа: "Нажми 📞 Contactati-ne для связи с нами."
+8. Оставайся на теме детской одежды.
 Отвечай на русском.`
     : `Esti asistentul magazinului de haine pentru copii Didi Kids MD (Moldova).
 
@@ -366,14 +401,14 @@ INFORMATII MAGAZIN:
 - Catalog cu poze: canalul @didikidsmd
 
 REGULI:
-1. NU recomanda produse specifice, modele sau marimi — nu cunosti stocul real disponibil.
-2. Daca clientul intreaba ce produse sunt disponibile, ce recomanzi, ce marimi sunt — spune DOAR: "Apasa 🔍 Verifica stoc din meniu — iti arat ce avem disponibil chiar acum."
-3. Daca clientul vrea sa comande sau sa cumpere — spune DOAR: "Apasa butonul 🛍 Cum sa comand din meniu pentru a plasa comanda."
+1. Daca clientul cauta haine — pune maxim 2 intrebari: pentru cine (fetita/baiat) si marimea in cm. Daca stii deja tipul hainei (rochie, costum, sport) — nu mai intreba.
+2. Cand stii TIPUL hainei SI marimea — adauga la SFARSITUL raspunsului un marker: [SEARCH:keyword:size] unde keyword = rochie/costum/sport (doar acestea trei), size = marimea in cifre. Exemplu: [SEARCH:rochie:110]. NU mentiona acest marker clientului.
+3. Daca clientul vrea sa comande — spune DOAR: "Apasa 🛍 Cum sa comand din meniu."
 4. NU vorbi despre alte magazine sau produse.
-5. Da sfaturi DOAR despre intretinerea hainelor (spalare, calcare) dupa tipul tesaturii.
+5. Da sfaturi DOAR despre intretinerea hainelor (spalare, calcare).
 6. Raspunsuri SCURTE: maxim 2-3 propozitii per mesaj.
-7. Daca nu stii raspunsul, spune: "Nu am aceasta informatie. Apasa 📞 Contactati-ne pentru a ne contacta direct."
-8. Ramai pe tema hainelor de copii — daca clientul intreaba altceva, redirectioneaza politicos.
+7. Daca nu stii raspunsul: "Apasa 📞 Contactati-ne pentru a ne contacta direct."
+8. Ramai pe tema hainelor de copii.
 Raspunde in romana.`;
 }
 
@@ -801,12 +836,50 @@ bot.on('message', async (msg) => {
       system: systemPrompt(updatedLang),
       messages: userHistory[chatId],
     });
-    const reply = response.content[0].text;
+    const rawReply = response.content[0].text;
+
+    // Detecteaza marker [SEARCH:keyword:size] lasat de AI cand cunoaste categoria + marimea
+    const searchMatch = rawReply.match(/\[SEARCH:(\w+):(\d+)\]/);
+    const reply = rawReply.replace(/\[SEARCH:[^\]]+\]/g, '').trim();
+
     userHistory[chatId].push({ role: 'assistant', content: reply });
     if (userHistory[chatId].length > MAX_HISTORY) {
       userHistory[chatId] = userHistory[chatId].slice(-MAX_HISTORY);
     }
-    bot.sendMessage(chatId, reply, { reply_markup: mainMenu(updatedLang).reply_markup });
+
+    await bot.sendMessage(chatId, reply, { reply_markup: mainMenu(updatedLang).reply_markup });
+
+    // Daca AI a detectat categoria + marimea — cauta in Stoc real si trimite pozele
+    if (searchMatch) {
+      const keyword = searchMatch[1];
+      const marime = searchMatch[2];
+      await bot.sendChatAction(chatId, 'typing');
+      const products = await getProductsByCategory(keyword, marime);
+
+      if (products.length > 0) {
+        await bot.sendMessage(chatId,
+          `🔍 Iată ce avem disponibil la mărimea *${marime} cm*:`,
+          { parse_mode: 'Markdown' });
+        for (const p of products) {
+          const fileId = await getCatalogFileId(p.cod);
+          const caption = `📦 *${p.cod}*\n${p.descriere}\n💰 ${p.pret} lei`;
+          if (fileId) {
+            await bot.sendPhoto(chatId, fileId, { caption, parse_mode: 'Markdown' });
+          } else {
+            await bot.sendMessage(chatId, caption, { parse_mode: 'Markdown' });
+          }
+        }
+        await bot.sendMessage(chatId,
+          updatedLang === 'ru'
+            ? 'Doriți să comandați? Apăsați 🛍 Как заказать 👇'
+            : 'Doriți să comandați? Apăsați 🛍 Cum sa comand 👇',
+          mainMenu(updatedLang));
+      } else {
+        await bot.sendMessage(chatId,
+          `Ne pare rău, momentan nu avem modele disponibile la mărimea *${marime} cm* în această categorie.\n\nPentru toate opțiunile disponibile apasă 🔍 Verifica stoc 👇`,
+          { ...mainMenu(updatedLang), parse_mode: 'Markdown' });
+      }
+    }
   } catch (error) {
     console.error('AI error:', error.message);
     bot.sendMessage(chatId, updatedLang === 'ru' ? 'Произошла ошибка. Попробуйте ещё раз.' : 'A aparut o eroare. Incercati din nou.');
@@ -865,4 +938,4 @@ bot.on('polling_error', (error) => {
   if ((error.message || '').includes('409')) process.exit(1);
 });
 
-console.log('Didi Kids Bot pornit... v21');
+console.log('Didi Kids Bot pornit... v22');
