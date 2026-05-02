@@ -47,7 +47,7 @@ async function getStocForProduct(codProdus) {
   return result;
 }
 
-async function getProductsByCategory(keyword, marime, gen) {
+async function getProductsByCategory(keyword, marime, gen, excludeCods = []) {
   try {
     const sheets = getSheetsClient();
     const res = await sheets.spreadsheets.values.get({
@@ -57,7 +57,7 @@ async function getProductsByCategory(keyword, marime, gen) {
     });
     const rows = res.data.values || [];
     const found = [];
-    const seenCods = new Set();
+    const seenCods = new Set(excludeCods.map(c => c.toUpperCase()));
 
     for (const row of rows) {
       const cod = String(row[0] || '').toUpperCase();
@@ -241,6 +241,7 @@ async function updateStatusComanda(orderData, status) {
 
 const userLang = {};
 const userHistory = {};
+const userLastShown = {}; // codurile produselor deja afisate per chat
 const userOrder = {};
 const userBrowse = {};
 const MAX_HISTORY = 6;
@@ -392,7 +393,7 @@ function systemPrompt(lang) {
 1. Если клиент ищет одежду — задай максимум 2 вопроса: для кого (девочка/мальчик) и размер в см. Если уже знаешь тип одежды — не спрашивай повторно.
 2. При вопросе о типе одежды — учитывай пол: для ДЕВОЧЕК спрашивай "rochie, costum или sport?", для МАЛЬЧИКОВ спрашивай "costum или sport?" (НЕ предлагай rochie для мальчиков).
 3. Добавь маркер [SEARCH:keyword:size:gen] ТОЛЬКО когда клиент ЯВНО ответил с типом одежды И ты знаешь размер в см. keyword = ТОЧНО один из: rochie, costum, sport. size = размер цифрами. gen = fete или baieti. Пример: [SEARCH:costum:100:fete]. НЕ добавляй маркер если ещё ждёшь ответа. НЕ упоминай этот маркер клиенту.
-4. Если клиент говорит "altceva?", "mai aveti?", "alte variante?" после показа товаров — предложи другую категорию и добавь маркер [SEARCH] для неё с тем же размером и полом. Пример: если показал костюмы, предложи rochie или sport и добавь [SEARCH:rochie:100:fete].
+4. Если клиент говорит "altceva?", "mai aveti?", "alte variante?" после показа товаров — ищи сначала другие варианты из ТОЙ ЖЕ категории с тем же маркером [SEARCH:та_же_категория:тот_же_размер:тот_же_пол]. Система автоматически исключит уже показанные товары. Только если уверен что больше нет вариантов — предложи другую категорию.
 3. Если клиент хочет заказать — скажи ТОЛЬКО: "Нажми 🛍 Как заказать в меню."
 4. НЕ упоминай другие магазины или бренды.
 5. Давай советы ТОЛЬКО по уходу за одеждой (стирка, глажка).
@@ -411,7 +412,7 @@ REGULI:
 1. Daca clientul cauta haine — pune maxim 2 intrebari: pentru cine (fetita/baiat) si marimea in cm. Daca stii deja tipul hainei — nu mai intreba.
 2. Cand intrebi tipul hainei — adapteaza la gen: pentru FETITE intreaba "rochie, costum sau sport?", pentru BAIETI intreaba "costum sau sport?" (NU propune rochie la baieti).
 3. Adauga marker [SEARCH:keyword:size:gen] DOAR cand clientul a raspuns EXPLICIT cu tipul hainei SI stii marimea in cm. keyword = EXACT unul din: rochie, costum, sport. size = marimea in cifre. gen = fete sau baieti. Exemplu: [SEARCH:costum:100:fete]. NU adauga marker daca inca astepti raspunsul. NU mentiona acest marker clientului.
-4. Daca clientul spune "altceva?", "mai aveti?", "alte variante?" dupa ce ai aratat produse — propune alta categorie disponibila si adauga marker [SEARCH] pentru acea categorie cu aceeasi marime si gen. Exemplu: daca ai aratat costume, propune rochii sau sport si adauga [SEARCH:rochie:100:fete].
+4. Daca clientul spune "altceva?", "mai aveti?", "alte variante?" sau similar dupa ce ai aratat produse — cauta MAI INTAI alte variante din ACEEASI categorie cu acelasi marker [SEARCH:aceeasi_categorie:aceeasi_marime:acelasi_gen]. Sistemul va exclude automat produsele deja afisate. Doar daca stii sigur ca nu mai exista alte variante in acea categorie, propune o alta categorie.
 3. Daca clientul vrea sa comande — spune DOAR: "Apasa 🛍 Cum sa comand din meniu."
 4. NU vorbi despre alte magazine sau produse.
 5. Da sfaturi DOAR despre intretinerea hainelor (spalare, calcare).
@@ -459,6 +460,7 @@ bot.on('message', async (msg) => {
     userHistory[chatId] = [];
     delete userOrder[chatId];
     delete userBrowse[chatId];
+    delete userLastShown[chatId];
     return bot.sendMessage(chatId, welcomeText(lang), mainMenu(lang));
   }
 
@@ -866,9 +868,13 @@ bot.on('message', async (msg) => {
       const marime = searchMatch[2];
       const gen = searchMatch[3] || null; // fete sau baieti
       await bot.sendChatAction(chatId, 'typing');
-      const products = await getProductsByCategory(keyword, marime, gen);
+      const alreadyShown = userLastShown[chatId] || [];
+      const products = await getProductsByCategory(keyword, marime, gen, alreadyShown);
 
       if (products.length > 0) {
+        // Salveaza codurile afisate pentru excludere la urmatoarea cautare
+        userLastShown[chatId] = [...alreadyShown, ...products.map(p => p.cod)];
+
         await bot.sendMessage(chatId,
           `🔍 Iată ce avem disponibil la mărimea *${marime} cm*:`,
           { parse_mode: 'Markdown' });
@@ -888,7 +894,7 @@ bot.on('message', async (msg) => {
           mainMenu(updatedLang));
       } else {
         await bot.sendMessage(chatId,
-          `Ne pare rău, momentan nu avem modele disponibile la mărimea *${marime} cm* în această categorie.\n\nPentru toate opțiunile disponibile apasă 🔍 Verifica stoc 👇`,
+          `Ne pare rău, momentan nu mai avem alte modele disponibile la mărimea *${marime} cm* în această categorie.`,
           { ...mainMenu(updatedLang), parse_mode: 'Markdown' });
       }
     }
@@ -950,4 +956,4 @@ bot.on('polling_error', (error) => {
   if ((error.message || '').includes('409')) process.exit(1);
 });
 
-console.log('Didi Kids Bot pornit... v26');
+console.log('Didi Kids Bot pornit... v27');
