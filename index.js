@@ -70,6 +70,8 @@ async function getProductsByCategory(keyword, marime, gen) {
       const rowMarime = parts[parts.length - 1].trim();
       if (rowMarime !== String(marime)) continue;
       if (!desc.includes(keyword.toLowerCase())) continue;
+      // Costum ≠ costum sportiv (sport e categorie separata)
+      if (keyword === 'costum' && desc.includes('sport')) continue;
       // Filtreaza dupa gen
       if (gen === 'fete' && (desc.includes('baet') || desc.includes('baieti'))) continue;
       if (gen === 'baieti' && (desc.includes('fete') || desc.includes('fetit'))) continue;
@@ -389,7 +391,8 @@ function systemPrompt(lang) {
 ПРАВИЛА:
 1. Если клиент ищет одежду — задай максимум 2 вопроса: для кого (девочка/мальчик) и размер в см. Если уже знаешь тип одежды — не спрашивай повторно.
 2. При вопросе о типе одежды — учитывай пол: для ДЕВОЧЕК спрашивай "rochie, costum или sport?", для МАЛЬЧИКОВ спрашивай "costum или sport?" (НЕ предлагай rochie для мальчиков).
-3. Добавь маркер [SEARCH:keyword:size:gen] ТОЛЬКО когда клиент ЯВНО ответил с типом одежды И ты знаешь размер в см. keyword = ТОЧНО один из: rochie, costum, sport. size = размер цифрами. gen = fete или baieti. Пример: [SEARCH:costum:100:fete] или [SEARCH:costum:100:baieti]. НЕ добавляй маркер если ещё ждёшь ответа клиента. НЕ упоминай этот маркер клиенту.
+3. Добавь маркер [SEARCH:keyword:size:gen] ТОЛЬКО когда клиент ЯВНО ответил с типом одежды И ты знаешь размер в см. keyword = ТОЧНО один из: rochie, costum, sport. size = размер цифрами. gen = fete или baieti. Пример: [SEARCH:costum:100:fete]. НЕ добавляй маркер если ещё ждёшь ответа. НЕ упоминай этот маркер клиенту.
+4. Если клиент говорит "altceva?", "mai aveti?", "alte variante?" после показа товаров — предложи другую категорию и добавь маркер [SEARCH] для неё с тем же размером и полом. Пример: если показал костюмы, предложи rochie или sport и добавь [SEARCH:rochie:100:fete].
 3. Если клиент хочет заказать — скажи ТОЛЬКО: "Нажми 🛍 Как заказать в меню."
 4. НЕ упоминай другие магазины или бренды.
 5. Давай советы ТОЛЬКО по уходу за одеждой (стирка, глажка).
@@ -407,7 +410,8 @@ INFORMATII MAGAZIN:
 REGULI:
 1. Daca clientul cauta haine — pune maxim 2 intrebari: pentru cine (fetita/baiat) si marimea in cm. Daca stii deja tipul hainei — nu mai intreba.
 2. Cand intrebi tipul hainei — adapteaza la gen: pentru FETITE intreaba "rochie, costum sau sport?", pentru BAIETI intreaba "costum sau sport?" (NU propune rochie la baieti).
-3. Adauga marker [SEARCH:keyword:size:gen] DOAR cand clientul a raspuns EXPLICIT cu tipul hainei SI stii marimea in cm. keyword = EXACT unul din: rochie, costum, sport. size = marimea in cifre. gen = fete sau baieti. Exemplu: [SEARCH:costum:100:fete] sau [SEARCH:costum:100:baieti]. NU adauga marker daca inca astepti raspunsul clientului. NU mentiona acest marker clientului.
+3. Adauga marker [SEARCH:keyword:size:gen] DOAR cand clientul a raspuns EXPLICIT cu tipul hainei SI stii marimea in cm. keyword = EXACT unul din: rochie, costum, sport. size = marimea in cifre. gen = fete sau baieti. Exemplu: [SEARCH:costum:100:fete]. NU adauga marker daca inca astepti raspunsul. NU mentiona acest marker clientului.
+4. Daca clientul spune "altceva?", "mai aveti?", "alte variante?" dupa ce ai aratat produse — propune alta categorie disponibila si adauga marker [SEARCH] pentru acea categorie cu aceeasi marime si gen. Exemplu: daca ai aratat costume, propune rochii sau sport si adauga [SEARCH:rochie:100:fete].
 3. Daca clientul vrea sa comande — spune DOAR: "Apasa 🛍 Cum sa comand din meniu."
 4. NU vorbi despre alte magazine sau produse.
 5. Da sfaturi DOAR despre intretinerea hainelor (spalare, calcare).
@@ -946,4 +950,4 @@ bot.on('polling_error', (error) => {
   if ((error.message || '').includes('409')) process.exit(1);
 });
 
-console.log('Didi Kids Bot pornit... v25');
+console.log('Didi Kids Bot pornit... v26');
