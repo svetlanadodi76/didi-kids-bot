@@ -38,6 +38,8 @@ async function getStocForProduct(codProdus) {
       if (stoc > 0) {
         const parts = String(row[1] || '').split(' - ');
         const marime = parts[parts.length - 1].trim();
+        // Sari randurile cu erori de formula sau marimi invalide
+        if (!marime || !/^\d+$/.test(marime)) continue;
         const pret = Math.round(parseFloat(row[7]) || 0);
         const fullDesc = String(row[1] || '');
         result.push({ marime, pret, fullDesc });
@@ -956,4 +958,4 @@ bot.on('polling_error', (error) => {
   if ((error.message || '').includes('409')) process.exit(1);
 });
 
-console.log('Didi Kids Bot pornit... v27');
+console.log('Didi Kids Bot pornit... v28');
