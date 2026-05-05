@@ -467,11 +467,14 @@ bot.on('message', async (msg) => {
   }
 
   if (['📞 Contactati-ne'].includes(cleanText)) {
-    const phone = process.env.OWNER_PHONE || '';
-    const contactMsg = phone
-      ? `📞 Ne puteti contacta:\n📱 Telefon/WhatsApp: ${phone}\n💬 Telegram: @didikidsmd\n🕐 Luni-Vineri: 9:00-18:00`
-      : `📞 Ne puteti contacta:\n💬 Telegram: @didikidsmd\n🕐 Luni-Vineri: 9:00-18:00`;
-    return bot.sendMessage(chatId, contactMsg, mainMenu(lang));
+    return bot.sendMessage(chatId,
+      `📞 Scrieți-ne direct pe Telegram:\n🕐 Luni-Vineri: 9:00-18:00`,
+      {
+        reply_markup: {
+          inline_keyboard: [[{ text: '💬 Scrie-ne pe Telegram', url: 'https://t.me/ManagerDidi' }]]
+        }
+      }
+    );
   }
 
   if (['🛍 Cum sa comand', '🛍 Как заказать'].includes(cleanText)) {
