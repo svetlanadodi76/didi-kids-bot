@@ -392,7 +392,7 @@ function systemPrompt(lang) {
 - Каталог с фото: канал @didikidsmd
 
 ПРАВИЛА:
-1. Если клиент ищет одежду — задай максимум 2 вопроса: для кого (девочка/мальчик) и размер в см. Если уже знаешь тип одежды — не спрашивай повторно.
+1. Если клиент ищет одежду — задай максимум 2 вопроса: для кого (девочка/мальчик) и рост ребёнка в см. Если клиент говорит возраст (например "4-5 лет") — НЕ конвертируй сам в см, спроси ЯВНО: "Какой рост у девочки/мальчика в см?". Если уже знаешь тип одежды — не спрашивай повторно.
 2. При вопросе о типе одежды — учитывай пол: для ДЕВОЧЕК спрашивай "rochie, costum или sport?", для МАЛЬЧИКОВ спрашивай "costum или sport?" (НЕ предлагай rochie для мальчиков).
 3. Добавь маркер [SEARCH:keyword:size:gen] ТОЛЬКО когда клиент ЯВНО ответил с типом одежды И ты знаешь размер в см. keyword = ТОЧНО один из: rochie, costum, sport. size = размер цифрами. gen = fete или baieti. Пример: [SEARCH:costum:100:fete]. НЕ добавляй маркер если ещё ждёшь ответа. НЕ упоминай этот маркер клиенту.
 4. Если клиент говорит "altceva?", "mai aveti?", "alte variante?" после показа товаров — ищи сначала другие варианты из ТОЙ ЖЕ категории с тем же маркером [SEARCH:та_же_категория:тот_же_размер:тот_же_пол]. Система автоматически исключит уже показанные товары. Только если уверен что больше нет вариантов — предложи другую категорию.
@@ -411,7 +411,7 @@ INFORMATII MAGAZIN:
 - Catalog cu poze: canalul @didikidsmd
 
 REGULI:
-1. Daca clientul cauta haine — pune maxim 2 intrebari: pentru cine (fetita/baiat) si marimea in cm. Daca stii deja tipul hainei — nu mai intreba.
+1. Daca clientul cauta haine — pune maxim 2 intrebari: pentru cine (fetita/baiat) si inaltimea copilului in cm. Daca clientul spune varsta (ex: "4-5 ani") — NU converti tu in cm, intreaba EXPLICIT: "Ce inaltime are fetita/baiatul in cm?". Daca stii deja tipul hainei — nu mai intreba.
 2. Cand intrebi tipul hainei — adapteaza la gen: pentru FETITE intreaba "rochie, costum sau sport?", pentru BAIETI intreaba "costum sau sport?" (NU propune rochie la baieti).
 3. Adauga marker [SEARCH:keyword:size:gen] DOAR cand clientul a raspuns EXPLICIT cu tipul hainei SI stii marimea in cm. keyword = EXACT unul din: rochie, costum, sport. size = marimea in cifre. gen = fete sau baieti. Exemplu: [SEARCH:costum:100:fete]. NU adauga marker daca inca astepti raspunsul. NU mentiona acest marker clientului.
 4. Daca clientul spune "altceva?", "mai aveti?", "alte variante?" sau similar dupa ce ai aratat produse — cauta MAI INTAI alte variante din ACEEASI categorie cu acelasi marker [SEARCH:aceeasi_categorie:aceeasi_marime:acelasi_gen]. Sistemul va exclude automat produsele deja afisate. Doar daca stii sigur ca nu mai exista alte variante in acea categorie, propune o alta categorie.
@@ -870,7 +870,8 @@ bot.on('message', async (msg) => {
     const validKeywords = ['rochie', 'costum', 'sport'];
     if (searchMatch && validKeywords.includes(searchMatch[1].toLowerCase())) {
       const keyword = searchMatch[1];
-      const marime = searchMatch[2];
+      const marimeRaw = parseInt(searchMatch[2], 10);
+      const marime = String(Math.ceil(marimeRaw / 10) * 10); // rotunjire in sus la zecime (105 → 110)
       const gen = searchMatch[3] || null; // fete sau baieti
       await bot.sendChatAction(chatId, 'typing');
       const alreadyShown = userLastShown[chatId] || [];
